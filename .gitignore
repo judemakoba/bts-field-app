@@ -1,0 +1,16 @@
+# Build outputs
+app/build/
+.gradle/
+build/
+gradle/app/
+
+# Local configuration
+local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Gradle wrapper (already committed as binary)
+# gradle/wrapper/gradle-wrapper.jar

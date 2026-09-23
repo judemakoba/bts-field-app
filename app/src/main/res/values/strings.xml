@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BTS Field Audit</string>
+
+    <!-- Login -->
+    <string name="login_title">BTS Site Audit</string>
+    <string name="login_subtitle">Field Engineer App</string>
+    <string name="email_hint">Email address</string>
+    <string name="password_hint">Password</string>
+    <string name="sign_in">Sign In</string>
+    <string name="signing_in">Signing in…</string>
+
+    <!-- Sites -->
+    <string name="my_sites">My Sites</string>
+    <string name="no_sites">No sites assigned to you yet.</string>
+    <string name="site_id">Site ID</string>
+    <string name="site_name">Site Name</string>
+    <string name="atc_number">ATC Number</string>
+    <string name="cluster">Cluster</string>
+    <string name="status">Status</string>
+    <string name="active">Active</string>
+    <string name="inactive">Inactive</string>
+
+    <!-- Audit -->
+    <string name="site_info">Site Info</string>
+    <string name="ground_equipment">Ground Equipment</string>
+    <string name="dcdb_records">DCDB Records</string>
+    <string name="tower_equipment">Tower Equipment</string>
+    <string name="photos">Photos</string>
+    <string name="save">Save</string>
+    <string name="add_item">Add Item</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
+    <string name="take_photo">Take Photo</string>
+    <string name="choose_photo">Choose from Gallery</string>
+    <string name="upload_photos">Upload Photos</string>
+
+    <!-- Sync -->
+    <string name="sync_now">Sync Now</string>
+    <string name="syncing">Syncing…</string>
+    <string name="sync_success">Sync successful!</string>
+    <string name="sync_failed">Sync failed. Will retry automatically.</string>
+    <string name="offline_mode">Offline mode — changes saved locally</string>
+    <string name="pending_sync">%d item(s) pending sync</string>
+
+    <!-- General -->
+    <string name="logout">Logout</string>
+    <string name="error">Error</string>
+    <string name="retry">Retry</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="loading">Loading…</string>
+    <string name="no_data">No data yet</string>
+</resources>
