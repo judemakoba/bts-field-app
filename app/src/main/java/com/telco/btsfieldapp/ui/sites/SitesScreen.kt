@@ -25,7 +25,7 @@ import com.telco.btsfieldapp.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SitesScreen(
-    onSiteClick: (Long) -> Unit,
+    onSiteClick: (String) -> Unit,
     onLogout: () -> Unit,
     viewModel: SitesViewModel = hiltViewModel()
 ) {
@@ -140,11 +140,11 @@ fun SitesScreen(
                         ) {
                             items(
                                 items = uiState.sites,
-                                key = { it.id }
+                                key = { it.siteId }
                             ) { site ->
                                 SiteCard(
                                     site = site,
-                                    onClick = { onSiteClick(site.id) }
+                                    onClick = { onSiteClick(site.siteId) }
                                 )
                             }
                         }
@@ -242,7 +242,7 @@ private fun SiteCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = site.btsId,
+                    text = site.siteId,
                     style = MaterialTheme.typography.bodySmall,
                     color = PrimaryGreen
                 )

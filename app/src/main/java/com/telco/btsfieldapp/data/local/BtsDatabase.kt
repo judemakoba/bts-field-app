@@ -15,7 +15,7 @@ import com.telco.btsfieldapp.data.local.entity.SiteEntity
         AuditEntity::class,
         PendingSyncEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class BtsDatabase : RoomDatabase() {

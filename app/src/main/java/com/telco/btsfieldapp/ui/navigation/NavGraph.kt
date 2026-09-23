@@ -16,13 +16,13 @@ sealed class Screen(val route: String) {
     data object Login : Screen("login")
     data object Sites : Screen("sites")
     data object SiteDetail : Screen("site/{siteId}") {
-        fun createRoute(siteId: Long) = "site/$siteId"
+        fun createRoute(siteId: String) = "site/$siteId"
     }
     data object Audit : Screen("audit/{siteId}/{auditType}") {
-        fun createRoute(siteId: Long, auditType: String) = "audit/$siteId/$auditType"
+        fun createRoute(siteId: String, auditType: String) = "audit/$siteId/$auditType"
     }
     data object Camera : Screen("camera/{siteId}/{auditType}") {
-        fun createRoute(siteId: Long, auditType: String) = "camera/$siteId/$auditType"
+        fun createRoute(siteId: String, auditType: String) = "camera/$siteId/$auditType"
     }
 }
 
@@ -60,7 +60,7 @@ fun NavGraph(
 
         composable(
             route = Screen.SiteDetail.route,
-            arguments = listOf(navArgument("siteId") { type = NavType.LongType })
+            arguments = listOf(navArgument("siteId") { type = NavType.StringType })
         ) {
             SiteDetailScreen(
                 onBack = { navController.popBackStack() },
@@ -73,7 +73,7 @@ fun NavGraph(
         composable(
             route = Screen.Audit.route,
             arguments = listOf(
-                navArgument("siteId") { type = NavType.LongType },
+                navArgument("siteId") { type = NavType.StringType },
                 navArgument("auditType") { type = NavType.StringType }
             )
         ) {
@@ -89,11 +89,10 @@ fun NavGraph(
         composable(
             route = Screen.Camera.route,
             arguments = listOf(
-                navArgument("siteId") { type = NavType.LongType },
+                navArgument("siteId") { type = NavType.StringType },
                 navArgument("auditType") { type = NavType.StringType }
             )
         ) {
-            // Camera screen placeholder — captured photo path stored in navigation result
             CameraScreenPlaceholder(
                 onBack = { navController.popBackStack() }
             )

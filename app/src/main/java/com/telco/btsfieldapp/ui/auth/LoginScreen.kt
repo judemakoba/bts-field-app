@@ -28,6 +28,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.telco.btsfieldapp.ui.theme.PrimaryGreen
 import com.telco.btsfieldapp.ui.theme.PrimaryGreenDark
 import com.telco.btsfieldapp.ui.theme.PrimaryGreenLight
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun LoginScreen(
@@ -38,8 +39,13 @@ fun LoginScreen(
     val focusManager = LocalFocusManager.current
     var passwordVisible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.isLoggedIn) {
-        if (uiState.isLoggedIn) onLoginSuccess()
+    // Handle one-shot navigation events
+    LaunchedEffect(Unit) {
+        viewModel.events.collectLatest { event ->
+            when (event) {
+                is LoginEvent.NavigateToSites -> onLoginSuccess()
+            }
+        }
     }
 
     Box(
@@ -61,7 +67,7 @@ fun LoginScreen(
             // Logo / Icon
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+                colors = CardDefaults.cardColors(containerColor = White),
                 modifier = Modifier.size(96.dp)
             ) {
                 Box(
@@ -82,13 +88,13 @@ fun LoginScreen(
             Text(
                 text = "BTS Site Audit",
                 style = MaterialTheme.typography.headlineLarge,
-                color = SurfaceLight,
+                color = White,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = "Field Engineer App",
                 style = MaterialTheme.typography.bodyLarge,
-                color = SurfaceLight.copy(alpha = 0.8f)
+                color = White.copy(alpha = 0.8f)
             )
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -116,7 +122,6 @@ fun LoginScreen(
                     )
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Email field
                     OutlinedTextField(
                         value = uiState.email,
                         onValueChange = viewModel::onEmailChange,
@@ -143,7 +148,6 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Password field
                     OutlinedTextField(
                         value = uiState.password,
                         onValueChange = viewModel::onPasswordChange,
@@ -179,7 +183,6 @@ fun LoginScreen(
                         )
                     )
 
-                    // Error message
                     if (uiState.error != null) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
@@ -192,7 +195,6 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Sign In button
                     Button(
                         onClick = viewModel::login,
                         modifier = Modifier
@@ -200,14 +202,12 @@ fun LoginScreen(
                             .height(52.dp),
                         shape = RoundedCornerShape(12.dp),
                         enabled = !uiState.isLoading,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = PrimaryGreen
-                        )
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
-                                color = SurfaceLight,
+                                color = White,
                                 strokeWidth = 2.dp
                             )
                         } else {
@@ -224,4 +224,4 @@ fun LoginScreen(
     }
 }
 
-private val SurfaceLight = androidx.compose.ui.graphics.Color.White
+private val White = androidx.compose.ui.graphics.Color.White

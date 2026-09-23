@@ -26,7 +26,7 @@ import com.telco.btsfieldapp.ui.theme.*
 fun AuditScreen(
     onBack: () -> Unit,
     onSuccess: () -> Unit,
-    onCapturePhoto: (Long, String) -> Unit,
+    onCapturePhoto: (String, String) -> Unit,
     viewModel: AuditViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()

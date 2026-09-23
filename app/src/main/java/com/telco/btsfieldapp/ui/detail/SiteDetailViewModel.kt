@@ -5,8 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.telco.btsfieldapp.data.repository.AuditRepository
 import com.telco.btsfieldapp.data.repository.AuthRepository
+import com.telco.btsfieldapp.data.repository.SiteAuditData
 import com.telco.btsfieldapp.data.repository.SiteRepository
-import com.telco.btsfieldapp.domain.model.AuditRecord
 import com.telco.btsfieldapp.domain.model.Site
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -15,8 +15,9 @@ import javax.inject.Inject
 
 data class SiteDetailUiState(
     val site: Site? = null,
-    val audits: List<AuditRecord> = emptyList(),
+    val auditData: SiteAuditData? = null,
     val isLoading: Boolean = true,
+    val isFetchingAudit: Boolean = false,
     val selectedTab: Int = 0,
     val engineerName: String? = null,
     val error: String? = null
@@ -30,55 +31,65 @@ class SiteDetailViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val siteId: Long = savedStateHandle.get<Long>("siteId") ?: 0L
+    val siteId: String = savedStateHandle.get<String>("siteId") ?: ""
 
-    private val _selectedTab = MutableStateFlow(0)
-    private val _site = MutableStateFlow<Site?>(null)
-    private val _isLoading = MutableStateFlow(true)
-    private val _error = MutableStateFlow<String?>(null)
-
-    val uiState: StateFlow<SiteDetailUiState> = combine(
-        _site,
-        _selectedTab,
-        _isLoading,
-        _error,
-        authRepository.userName
-    ) { site, tab, loading, error, engineerName ->
-        SiteDetailUiState(
-            site = site,
-            selectedTab = tab,
-            isLoading = loading,
-            error = error,
-            engineerName = engineerName
-        )
-    }.combine(
-        auditRepository.getAuditsBySite(siteId)
-    ) { state, audits ->
-        state.copy(audits = audits)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = SiteDetailUiState()
-    )
+    private val _uiState = MutableStateFlow(SiteDetailUiState())
+    val uiState: StateFlow<SiteDetailUiState> = _uiState.asStateFlow()
 
     init {
         loadSite()
+        collectEngineerName()
     }
 
     private fun loadSite() {
         viewModelScope.launch {
-            _isLoading.value = true
+            _uiState.update { it.copy(isLoading = true) }
             val site = siteRepository.getSiteById(siteId)
-            _site.value = site
-            _isLoading.value = false
+            _uiState.update { it.copy(site = site, isLoading = false) }
+            // Fetch audit data for this site
+            fetchAuditData()
+        }
+    }
+
+    private fun fetchAuditData() {
+        if (siteId.isBlank()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isFetchingAudit = true) }
+            auditRepository.fetchSiteAudit(siteId).fold(
+                onSuccess = { data ->
+                    _uiState.update { it.copy(auditData = data, isFetchingAudit = false) }
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(isFetchingAudit = false, error = e.message) }
+                }
+            )
+        }
+    }
+
+    private fun collectEngineerName() {
+        viewModelScope.launch {
+            authRepository.userName.collect { name ->
+                _uiState.update { it.copy(engineerName = name) }
+            }
         }
     }
 
     fun selectTab(index: Int) {
-        _selectedTab.value = index
+        _uiState.update { it.copy(selectedTab = index) }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(error = null) }
+            siteRepository.refreshSites().onSuccess {
+                fetchAuditData()
+            }.onFailure { e ->
+                _uiState.update { it.copy(error = e.message) }
+            }
+        }
     }
 
     fun clearError() {
-        _error.value = null
+        _uiState.update { it.copy(error = null) }
     }
 }

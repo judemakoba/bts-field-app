@@ -8,37 +8,40 @@ data class AuditRecord(
     val status: String,
     val createdAt: String,
     val updatedAt: String,
-    val synced: Boolean = true,
-    val data: AuditData? = null
+    val synced: Boolean = true
 )
 
-data class AuditData(
-    val ground: GroundAudit? = null,
-    val dcdb: DcdbAudit? = null,
-    val tower: TowerAudit? = null,
-    val equipment: EquipmentAudit? = null
-)
-
-data class GroundAudit(
+data class GroundRecord(
+    val id: String,
+    val siteId: String,
+    val type: String = "ground",
     val fenceCondition: String = "",
     val gateLock: String = "",
     val groundResistance: String = "",
     val drainageCondition: String = "",
     val notes: String = "",
-    val photos: List<String> = emptyList()
+    val createdAt: String = "",
+    val updatedAt: String = ""
 )
 
-data class DcdbAudit(
+data class DcdbRecord(
+    val id: String,
+    val siteId: String,
+    val type: String = "dcdb",
     val dcdbType: String = "",
     val dcdbCapacity: String = "",
     val cablesCondition: String = "",
     val surgeProtection: String = "",
     val cableEntrySealed: String = "",
     val notes: String = "",
-    val photos: List<String> = emptyList()
+    val createdAt: String = "",
+    val updatedAt: String = ""
 )
 
-data class TowerAudit(
+data class TowerRecord(
+    val id: String,
+    val siteId: String,
+    val type: String = "tower",
     val towerType: String = "",
     val towerHeight: String = "",
     val structuralIntegrity: String = "",
@@ -48,10 +51,14 @@ data class TowerAudit(
     val climbSafety: String = "",
     val antennaMounting: String = "",
     val notes: String = "",
-    val photos: List<String> = emptyList()
+    val createdAt: String = "",
+    val updatedAt: String = ""
 )
 
-data class EquipmentAudit(
+data class EquipmentRecord(
+    val id: String,
+    val siteId: String,
+    val type: String = "equipment",
     val cabinetCondition: String = "",
     val equipmentModel: String = "",
     val powerSupplyStatus: String = "",
@@ -61,5 +68,6 @@ data class EquipmentAudit(
     val uptime: String = "",
     val signalStrength: String = "",
     val notes: String = "",
-    val photos: List<String> = emptyList()
+    val createdAt: String = "",
+    val updatedAt: String = ""
 )

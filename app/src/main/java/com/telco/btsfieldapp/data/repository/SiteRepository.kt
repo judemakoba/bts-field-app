@@ -23,58 +23,51 @@ class SiteRepository @Inject constructor(
         entities.map { it.toDomain() }
     }
 
-    suspend fun getSiteById(id: Long): Site? = siteDao.getSiteById(id)?.toDomain()
+    suspend fun getSiteById(siteId: String): Site? = siteDao.getSiteById(siteId)?.toDomain()
 
     suspend fun refreshSites(): Result<List<Site>> {
         return try {
             val response = api.getSites()
-            if (response.success == true || response.data != null) {
-                val sites = response.data ?: emptyList()
-                siteDao.insertSites(sites.map { it.toEntity() })
-                Result.success(sites.map { it.toDomain() })
-            } else {
-                Result.failure(Exception(response.message ?: "Failed to fetch sites"))
-            }
+            val sites = response.data ?: emptyList()
+            siteDao.insertSites(sites.map { it.toEntity() })
+            Result.success(sites.map { it.toDomain() })
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
     private fun SiteDto.toEntity() = SiteEntity(
-        id = id,
+        siteId = siteId,
         name = name,
-        btsId = btsId,
-        address = address,
-        latitude = latitude,
-        longitude = longitude,
+        address = address ?: "",
         type = type ?: "",
         status = status ?: "",
+        latitude = latitude,
+        longitude = longitude,
         createdAt = createdAt ?: "",
         updatedAt = updatedAt ?: ""
     )
 
     private fun SiteDto.toDomain() = Site(
-        id = id,
+        siteId = siteId,
         name = name,
-        btsId = btsId,
-        address = address,
-        latitude = latitude,
-        longitude = longitude,
+        address = address ?: "",
         type = type ?: "",
         status = status ?: "",
+        latitude = latitude,
+        longitude = longitude,
         createdAt = createdAt ?: "",
         updatedAt = updatedAt ?: ""
     )
 
     private fun SiteEntity.toDomain() = Site(
-        id = id,
+        siteId = siteId,
         name = name,
-        btsId = btsId,
         address = address,
-        latitude = latitude,
-        longitude = longitude,
         type = type,
         status = status,
+        latitude = latitude,
+        longitude = longitude,
         createdAt = createdAt,
         updatedAt = updatedAt
     )

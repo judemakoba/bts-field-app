@@ -101,7 +101,7 @@ object AppModule {
             context,
             BtsDatabase::class.java,
             "bts_database"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
 
     @Provides
     fun provideSiteDao(db: BtsDatabase): SiteDao = db.siteDao()

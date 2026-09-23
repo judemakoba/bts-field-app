@@ -13,7 +13,7 @@ import javax.inject.Inject
 
 data class SitesUiState(
     val sites: List<Site> = emptyList(),
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
     val searchQuery: String = "",
     val error: String? = null,
@@ -53,8 +53,19 @@ class SitesViewModel @Inject constructor(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = SitesUiState(isLoading = true)
+        initialValue = SitesUiState()
     )
+
+    init {
+        // Auto-refresh from server on first load
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            siteRepository.refreshSites().onFailure { e ->
+                _error.value = e.message
+            }
+            _isRefreshing.value = false
+        }
+    }
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
@@ -64,10 +75,9 @@ class SitesViewModel @Inject constructor(
         viewModelScope.launch {
             _isRefreshing.value = true
             _error.value = null
-            siteRepository.refreshSites().fold(
-                onSuccess = { _error.value = null },
-                onFailure = { _error.value = it.message }
-            )
+            siteRepository.refreshSites().onFailure { e ->
+                _error.value = e.message
+            }
             _isRefreshing.value = false
         }
     }

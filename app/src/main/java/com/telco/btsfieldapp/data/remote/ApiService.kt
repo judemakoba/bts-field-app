@@ -4,33 +4,48 @@ import retrofit2.http.*
 
 interface ApiService {
 
-    // Auth
+    // ── Auth ────────────────────────────────────────────────────────────────
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): LoginResponse
 
     @GET("auth/me")
     suspend fun getCurrentUser(): LoginResponse
 
-    // Sites
+    // ── Sites ───────────────────────────────────────────────────────────────
     @GET("sites")
     suspend fun getSites(): SitesResponse
 
-    @GET("sites/{id}")
-    suspend fun getSiteDetail(@Path("id") id: Long): SiteDetailResponse
+    // ── Site Audit (per-site audit data) ────────────────────────────────────
+    @GET("audit/site/{siteId}")
+    suspend fun getSiteAudit(@Path("siteId") siteId: String): SiteAuditResponse
 
-    // Audits
-    @GET("audits")
-    suspend fun getAudits(@Query("site_id") siteId: Long? = null): AuditsResponse
+    // ── Audit Sync (mobile offline queue → server) ───────────────────────────
+    @POST("audit/sync")
+    suspend fun syncAudit(@Body request: AuditSyncRequest): AuditSyncResponse
 
-    @GET("audits/{id}")
-    suspend fun getAuditDetail(@Path("id") id: Long): AuditDetailResponse
+    // ── Individual record endpoints ─────────────────────────────────────────
+    @GET("ground")
+    suspend fun getGroundRecords(@Query("siteId") siteId: String): RecordListResponse
 
-    @POST("audits")
-    suspend fun createAudit(@Body request: CreateAuditRequest): ApiResponse
+    @POST("ground")
+    suspend fun createGroundRecord(@Body body: Map<String, Any>): RecordResponse
 
-    @PUT("audits/{id}")
-    suspend fun updateAudit(@Path("id") id: Long, @Body request: CreateAuditRequest): ApiResponse
+    @GET("dcdb")
+    suspend fun getDcdbRecords(@Query("siteId") siteId: String): RecordListResponse
 
-    @DELETE("audits/{id}")
-    suspend fun deleteAudit(@Path("id") id: Long): ApiResponse
+    @POST("dcdb")
+    suspend fun createDcdbRecord(@Body body: Map<String, Any>): RecordResponse
+
+    @GET("tower")
+    suspend fun getTowerRecords(@Query("siteId") siteId: String): RecordListResponse
+
+    @POST("tower")
+    suspend fun createTowerRecord(@Body body: Map<String, Any>): RecordResponse
+
+    // ── Equipment audit ──────────────────────────────────────────────────────
+    @GET("equipment")
+    suspend fun getEquipmentRecords(@Query("siteId") siteId: String): RecordListResponse
+
+    @POST("equipment")
+    suspend fun createEquipmentRecord(@Body body: Map<String, Any>): RecordResponse
 }

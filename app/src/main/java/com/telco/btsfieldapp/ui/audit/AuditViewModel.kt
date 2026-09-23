@@ -6,7 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.telco.btsfieldapp.data.repository.AuditRepository
 import com.telco.btsfieldapp.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -65,7 +68,7 @@ class AuditViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    val siteId: Long = savedStateHandle.get<Long>("siteId") ?: 0L
+    val siteId: String = savedStateHandle.get<String>("siteId") ?: ""
 
     private val auditTypeKey: String = savedStateHandle.get<String>("auditType") ?: "ground"
 
@@ -129,7 +132,7 @@ class AuditViewModel @Inject constructor(
             _uiState.update { it.copy(isSubmitting = true, error = null) }
 
             val data = buildAuditData(state)
-            val result = auditRepository.createAudit(
+            val result = auditRepository.submitAudit(
                 siteId = siteId,
                 type = state.auditType.key,
                 engineerName = state.engineerName ?: "Unknown",
@@ -149,6 +152,7 @@ class AuditViewModel @Inject constructor(
 
     private fun buildAuditData(state: AuditUiState): Map<String, Any> = when (state.auditType) {
         AuditType.GROUND -> mapOf(
+            "type" to "ground",
             "fence_condition" to state.fenceCondition,
             "gate_lock" to state.gateLock,
             "ground_resistance" to state.groundResistance,
@@ -156,6 +160,7 @@ class AuditViewModel @Inject constructor(
             "notes" to state.groundNotes
         )
         AuditType.DCDB -> mapOf(
+            "type" to "dcdb",
             "dcdb_type" to state.dcdbType,
             "dcdb_capacity" to state.dcdbCapacity,
             "cables_condition" to state.cablesCondition,
@@ -164,6 +169,7 @@ class AuditViewModel @Inject constructor(
             "notes" to state.dcdbNotes
         )
         AuditType.TOWER -> mapOf(
+            "type" to "tower",
             "tower_type" to state.towerType,
             "tower_height" to state.towerHeight,
             "structural_integrity" to state.structuralIntegrity,
@@ -175,6 +181,7 @@ class AuditViewModel @Inject constructor(
             "notes" to state.towerNotes
         )
         AuditType.EQUIPMENT -> mapOf(
+            "type" to "equipment",
             "cabinet_condition" to state.cabinetCondition,
             "equipment_model" to state.equipmentModel,
             "power_supply_status" to state.powerSupplyStatus,

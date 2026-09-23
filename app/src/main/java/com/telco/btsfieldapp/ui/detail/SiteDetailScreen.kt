@@ -17,7 +17,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.telco.btsfieldapp.domain.model.AuditRecord
+import com.telco.btsfieldapp.domain.model.DcdbRecord
+import com.telco.btsfieldapp.domain.model.GroundRecord
+import com.telco.btsfieldapp.domain.model.TowerRecord
 import com.telco.btsfieldapp.domain.model.Site
 import com.telco.btsfieldapp.ui.audit.AuditType
 import com.telco.btsfieldapp.ui.theme.*
@@ -29,7 +31,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun SiteDetailScreen(
     onBack: () -> Unit,
-    onStartAudit: (Long, String) -> Unit,
+    onStartAudit: (String, String) -> Unit,
     viewModel: SiteDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -82,7 +84,7 @@ fun SiteDetailScreen(
                 // Quick action buttons
                 item {
                     QuickActionsRow(
-                        siteId = uiState.site?.id ?: 0L,
+                        siteId = uiState.site?.siteId ?: "",
                         onStartAudit = onStartAudit
                     )
                 }
@@ -97,13 +99,65 @@ fun SiteDetailScreen(
                     )
                 }
 
-                if (uiState.audits.isEmpty()) {
+                val auditData = uiState.auditData
+                val hasRecords = (auditData?.groundRecords?.isNotEmpty() == true) ||
+                        (auditData?.dcdbRecords?.isNotEmpty() == true) ||
+                        (auditData?.towerRecords?.isNotEmpty() == true)
+
+                if (uiState.isFetchingAudit) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = PrimaryGreen, strokeWidth = 2.dp)
+                        }
+                    }
+                } else if (!hasRecords) {
                     item {
                         EmptyAuditState()
                     }
                 } else {
-                    items(uiState.audits, key = { it.id }) { audit ->
-                        AuditHistoryCard(audit = audit)
+                    // Ground records
+                    auditData?.groundRecords?.take(5)?.let { records ->
+                        item {
+                            AuditSectionHeader(
+                                title = "Ground",
+                                count = auditData.groundRecords.size,
+                                icon = Icons.Default.Landscape
+                            )
+                        }
+                        items(records.size) { idx ->
+                            GroundRecordCard(record = records[idx])
+                        }
+                    }
+                    // DCDB records
+                    auditData?.dcdbRecords?.take(5)?.let { records ->
+                        item {
+                            AuditSectionHeader(
+                                title = "DCDB",
+                                count = auditData.dcdbRecords.size,
+                                icon = Icons.Default.ElectricalServices
+                            )
+                        }
+                        items(records.size) { idx ->
+                            DcdbRecordCard(record = records[idx])
+                        }
+                    }
+                    // Tower records
+                    auditData?.towerRecords?.take(5)?.let { records ->
+                        item {
+                            AuditSectionHeader(
+                                title = "Tower",
+                                count = auditData.towerRecords.size,
+                                icon = Icons.Default.Architecture
+                            )
+                        }
+                        items(records.size) { idx ->
+                            TowerRecordCard(record = records[idx])
+                        }
                     }
                 }
             }
@@ -139,7 +193,7 @@ private fun SiteInfoHeader(site: Site) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = site.btsId,
+                        text = site.siteId,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = PrimaryGreen
@@ -230,8 +284,8 @@ private fun InfoRow(
 
 @Composable
 private fun QuickActionsRow(
-    siteId: Long,
-    onStartAudit: (Long, String) -> Unit
+    siteId: String,
+    onStartAudit: (String, String) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(
@@ -316,23 +370,97 @@ private fun AuditTypeButton(
 }
 
 @Composable
-private fun AuditHistoryCard(audit: AuditRecord) {
-    val typeColor = when (audit.type.lowercase()) {
-        "ground" -> StatusActive
-        "dcdb" -> WarningColor
-        "tower" -> InfoColor
-        "equipment" -> Color(0xFF8B5CF6)
-        else -> StatusInactive
+private fun AuditSectionHeader(
+    title: String,
+    count: Int,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = PrimaryGreen
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = "$title Records",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = PrimaryGreen
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = PrimaryGreen.copy(alpha = 0.1f)
+        ) {
+            Text(
+                text = count.toString(),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = PrimaryGreen,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
+}
 
+@Composable
+private fun GroundRecordCard(record: GroundRecord) {
+    RecordCard(
+        icon = Icons.Default.Landscape,
+        color = StatusActive,
+        title = "Ground",
+        subtitle = "${record.fenceCondition.ifEmpty { "—" }} | ${record.groundResistance.ifEmpty { "—" }}Ω",
+        notes = record.notes,
+        date = record.createdAt
+    )
+}
+
+@Composable
+private fun DcdbRecordCard(record: DcdbRecord) {
+    RecordCard(
+        icon = Icons.Default.ElectricalServices,
+        color = WarningColor,
+        title = "DCDB",
+        subtitle = "${record.dcdbType.ifEmpty { "—" }} | ${record.dcdbCapacity.ifEmpty { "—" }}A",
+        notes = record.notes,
+        date = record.createdAt
+    )
+}
+
+@Composable
+private fun TowerRecordCard(record: TowerRecord) {
+    RecordCard(
+        icon = Icons.Default.Architecture,
+        color = InfoColor,
+        title = "Tower",
+        subtitle = "${record.towerType.ifEmpty { "—" }} | ${record.towerHeight.ifEmpty { "—" }}m",
+        notes = record.notes,
+        date = record.createdAt
+    )
+}
+
+@Composable
+private fun RecordCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    title: String,
+    subtitle: String,
+    notes: String,
+    date: String
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
@@ -344,55 +472,43 @@ private fun AuditHistoryCard(audit: AuditRecord) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(typeColor.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
+                    .background(color.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = when (audit.type.lowercase()) {
-                        "ground" -> Icons.Default.Landscape
-                        "dcdb" -> Icons.Default.ElectricalServices
-                        "tower" -> Icons.Default.Architecture
-                        else -> Icons.Default.DevicesOther
-                    },
+                    imageVector = icon,
                     contentDescription = null,
-                    tint = typeColor,
+                    tint = color,
                     modifier = Modifier.size(20.dp)
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = audit.type.replaceFirstChar { it.uppercase() } + " Audit",
+                    text = title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = audit.engineerName,
+                    text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = OnSurfaceVariantLight
                 )
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = formatDateShort(audit.createdAt),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = OnSurfaceVariantLight
-                )
-                if (!audit.synced) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = WarningColor.copy(alpha = 0.15f)
-                    ) {
-                        Text(
-                            "Pending sync",
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = WarningColor
-                        )
-                    }
+                if (notes.isNotEmpty()) {
+                    Text(
+                        text = notes,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OnSurfaceVariantLight.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
                 }
             }
+            Text(
+                text = formatDateShort(date),
+                style = MaterialTheme.typography.labelSmall,
+                color = OnSurfaceVariantLight
+            )
         }
     }
 }
