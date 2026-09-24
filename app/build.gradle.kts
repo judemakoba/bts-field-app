@@ -18,7 +18,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "API_BASE", "\"https://bts-audit-1-1.tailfd1512.ts.net/api\"")
+        buildConfigField("String", "API_BASE", "\"https://bts-audit.tailfd1512.ts.net/api\"")
     }
 
     buildTypes {
