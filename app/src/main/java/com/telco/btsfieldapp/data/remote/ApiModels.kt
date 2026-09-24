@@ -37,11 +37,15 @@ data class SiteDto(
     val address: String?,
     val type: String?,
     val status: String?,
-    val latitude: Double?,
-    val longitude: Double?,
+    val latitude: String?,
+    val longitude: String?,
     @SerializedName("createdAt") val createdAt: String?,
     @SerializedName("updatedAt") val updatedAt: String?
-)
+) {
+    /** Safe parse: returns null for empty/blank strings */
+    fun parseLatitude(): Double? = latitude?.takeIf { it.isNotBlank() }?.toDoubleOrNull()
+    fun parseLongitude(): Double? = longitude?.takeIf { it.isNotBlank() }?.toDoubleOrNull()
+}
 
 data class SitesResponse(
     val success: Boolean?,

@@ -51,8 +51,8 @@ class SiteRepository @Inject constructor(
         address = address ?: "",
         type = type ?: "",
         status = status ?: "",
-        latitude = latitude,
-        longitude = longitude,
+        latitude = parseLatitude(),
+        longitude = parseLongitude(),
         createdAt = createdAt ?: "",
         updatedAt = updatedAt ?: ""
     )
@@ -63,8 +63,8 @@ class SiteRepository @Inject constructor(
         address = address ?: "",
         type = type ?: "",
         status = status ?: "",
-        latitude = latitude,
-        longitude = longitude,
+        latitude = parseLatitude(),
+        longitude = parseLongitude(),
         createdAt = createdAt ?: "",
         updatedAt = updatedAt ?: ""
     )
