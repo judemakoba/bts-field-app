@@ -13,7 +13,11 @@ data class LoginResponse(
     val token: String?,
     val user: UserDto?,
     val message: String?,
-    val success: Boolean?
+    val success: Boolean?,
+    val code: String?,
+    val error: String?,
+    val attemptsLeft: Int?,
+    val retryAfterSeconds: Int?
 )
 
 data class UserDto(
@@ -29,21 +33,22 @@ data class UserDto(
 data class SiteDto(
     val id: String?,
     @SerializedName("siteId") val siteId: String,
-    val name: String,
+    @SerializedName("siteName") val name: String?,
     val address: String?,
     val type: String?,
     val status: String?,
     val latitude: Double?,
     val longitude: Double?,
-    @SerializedName("assignedUsers") val assignedUsers: List<String>?,
     @SerializedName("createdAt") val createdAt: String?,
     @SerializedName("updatedAt") val updatedAt: String?
 )
 
 data class SitesResponse(
     val success: Boolean?,
-    val data: List<SiteDto>?,
-    val message: String?
+    val sites: List<SiteDto>?,
+    val message: String?,
+    val error: String?,
+    val code: String?
 )
 
 // ── Audit / Site Audit ─────────────────────────────────────────────────────────

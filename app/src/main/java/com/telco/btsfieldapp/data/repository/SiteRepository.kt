@@ -28,17 +28,27 @@ class SiteRepository @Inject constructor(
     suspend fun refreshSites(): Result<List<Site>> {
         return try {
             val response = api.getSites()
-            val sites = response.data ?: emptyList()
+            val sites = response.sites ?: emptyList()
             siteDao.insertSites(sites.map { it.toEntity() })
             Result.success(sites.map { it.toDomain() })
         } catch (e: Exception) {
-            Result.failure(e)
+            val msg = e.message ?: ""
+            Result.failure(
+                when {
+                    msg.contains("SSL", ignoreCase = true) ->
+                        Exception("Network error — check your internet connection.")
+                    msg.contains("connect", ignoreCase = true) ||
+                    msg.contains("timeout", ignoreCase = true) ->
+                        Exception("Could not reach the server — please try again.")
+                    else -> Exception("Failed to load sites. Please try again.")
+                }
+            )
         }
     }
 
     private fun SiteDto.toEntity() = SiteEntity(
         siteId = siteId,
-        name = name,
+        name = name ?: siteId,
         address = address ?: "",
         type = type ?: "",
         status = status ?: "",
@@ -50,7 +60,7 @@ class SiteRepository @Inject constructor(
 
     private fun SiteDto.toDomain() = Site(
         siteId = siteId,
-        name = name,
+        name = name ?: siteId,
         address = address ?: "",
         type = type ?: "",
         status = status ?: "",

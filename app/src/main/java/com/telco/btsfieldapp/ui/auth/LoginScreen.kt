@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.CellTower
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -185,11 +186,49 @@ fun LoginScreen(
 
                     if (uiState.error != null) {
                         Spacer(modifier = Modifier.height(12.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (uiState.isLockedOut)
+                                MaterialTheme.colorScheme.errorContainer
+                            else
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                if (uiState.isLockedOut) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text(
+                                    text = if (uiState.isLockedOut)
+                                        "Locked — retry in ${uiState.lockoutSeconds}s"
+                                    else
+                                        uiState.error!!,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+
+                    if (!uiState.isLockedOut && (uiState.attemptsLeft ?: 3) <= 2 && uiState.error == null) {
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = uiState.error!!,
-                            color = MaterialTheme.colorScheme.error,
+                            text = "${uiState.attemptsLeft} attempt${if (uiState.attemptsLeft == 1) "" else "s"} remaining",
+                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                             style = MaterialTheme.typography.bodySmall,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 
@@ -201,14 +240,23 @@ fun LoginScreen(
                             .fillMaxWidth()
                             .height(52.dp),
                         shape = RoundedCornerShape(12.dp),
-                        enabled = !uiState.isLoading,
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                        enabled = !uiState.isLoading && !uiState.isLockedOut,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryGreen,
+                            disabledContainerColor = PrimaryGreen.copy(alpha = 0.4f)
+                        )
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
                                 color = White,
                                 strokeWidth = 2.dp
+                            )
+                        } else if (uiState.isLockedOut) {
+                            Text(
+                                text = "Wait ${uiState.lockoutSeconds}s",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
                             )
                         } else {
                             Text(

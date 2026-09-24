@@ -4,18 +4,23 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.google.gson.Gson
 import com.telco.btsfieldapp.data.remote.ApiService
 import com.telco.btsfieldapp.data.remote.LoginRequest
+import com.telco.btsfieldapp.data.remote.LoginResponse
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import okhttp3.ResponseBody
+import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AuthRepository @Inject constructor(
     private val api: ApiService,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val gson: Gson
 ) {
     companion object {
         private val TOKEN_KEY = stringPreferencesKey("auth_token")
@@ -51,10 +56,46 @@ class AuthRepository @Inject constructor(
                 }
                 Result.success(token)
             } else {
-                Result.failure(Exception(response.message ?: "Login failed"))
+                Result.failure(
+                    AuthException(
+                        message = response.message ?: "Login failed",
+                        code = response.code,
+                        attemptsLeft = response.attemptsLeft,
+                        retryAfterSeconds = response.retryAfterSeconds
+                    )
+                )
+            }
+        } catch (e: HttpException) {
+            if (e.code() == 401) {
+                val body = e.response()?.errorBody()
+                val parsed = parseLoginError(body)
+                Result.failure(
+                    AuthException(
+                        message = parsed.message,
+                        code = parsed.code,
+                        attemptsLeft = parsed.attemptsLeft,
+                        retryAfterSeconds = parsed.retryAfterSeconds
+                    )
+                )
+            } else {
+                Result.failure(Exception("Connection error — please check your internet."))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("Login failed — please try again."))
+        }
+    }
+
+    private fun parseLoginError(body: ResponseBody?): AuthException {
+        return try {
+            val parsed = gson.fromJson(body?.string(), LoginResponse::class.java)
+            AuthException(
+                message = parsed.message ?: parsed.error ?: "Incorrect email or password",
+                code = parsed.code,
+                attemptsLeft = parsed.attemptsLeft,
+                retryAfterSeconds = parsed.retryAfterSeconds
+            )
+        } catch (_: Exception) {
+            AuthException(message = "Incorrect email or password")
         }
     }
 
@@ -66,3 +107,13 @@ class AuthRepository @Inject constructor(
         }
     }
 }
+
+/**
+ * Structured auth error carrying server-provided code and retry metadata.
+ */
+class AuthException(
+    override val message: String,
+    val code: String? = null,
+    val attemptsLeft: Int? = null,
+    val retryAfterSeconds: Int? = null
+) : Exception(message)
