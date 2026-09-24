@@ -7,7 +7,7 @@
     </base-config>
     <!-- Allow the BTS API domain even with self-signed certs in dev -->
     <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">bts-audit-1.tailfd1512.ts.net</domain>
+        <domain includeSubdomains="true">bts-audit-1-1.tailfd1512.ts.net</domain>
         <domain includeSubdomains="true">tailfd1512.ts.net</domain>
     </domain-config>
 </network-security-config>
