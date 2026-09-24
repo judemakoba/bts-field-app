@@ -33,16 +33,15 @@ class SiteRepository @Inject constructor(
             Result.success(sites.map { it.toDomain() })
         } catch (e: Exception) {
             val msg = e.message ?: ""
-            Result.failure(
-                when {
-                    msg.contains("SSL", ignoreCase = true) ->
-                        Exception("Network error — check your internet connection.")
-                    msg.contains("connect", ignoreCase = true) ||
-                    msg.contains("timeout", ignoreCase = true) ->
-                        Exception("Could not reach the server — please try again.")
-                    else -> Exception("Failed to load sites. Please try again.")
-                }
-            )
+            val errMsg = when {
+                msg.contains("SSL", ignoreCase = true) ->
+                    "Network error — check your internet connection."
+                msg.contains("connect", ignoreCase = true) ||
+                msg.contains("timeout", ignoreCase = true) ->
+                    "Could not reach the server — please try again."
+                else -> "Failed to load sites: ${e::class.simpleName} — $msg"
+            }
+            Result.failure(Exception(errMsg))
         }
     }
 
