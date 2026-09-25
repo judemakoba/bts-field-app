@@ -32,6 +32,7 @@ import java.time.format.DateTimeFormatter
 fun SiteDetailScreen(
     onBack: () -> Unit,
     onStartAudit: (String, String) -> Unit,
+    onOpenGroundEquipment: (String) -> Unit,
     viewModel: SiteDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -85,7 +86,8 @@ fun SiteDetailScreen(
                 item {
                     QuickActionsRow(
                         siteId = uiState.site?.siteId ?: "",
-                        onStartAudit = onStartAudit
+                        onStartAudit = onStartAudit,
+                        onOpenGroundEquipment = onOpenGroundEquipment
                     )
                 }
 
@@ -285,7 +287,8 @@ private fun InfoRow(
 @Composable
 private fun QuickActionsRow(
     siteId: String,
-    onStartAudit: (String, String) -> Unit
+    onStartAudit: (String, String) -> Unit,
+    onOpenGroundEquipment: (String) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(
@@ -294,6 +297,13 @@ private fun QuickActionsRow(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(bottom = 12.dp)
         )
+
+        // Ground Equipment Scope — full width, prominent
+        GroundEquipmentScopeButton(
+            onClick = { onOpenGroundEquipment(siteId) },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(8.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -320,6 +330,35 @@ private fun QuickActionsRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun GroundEquipmentScopeButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val color = Color(0xFF22C55E)
+    ElevatedButton(
+        onClick = onClick,
+        modifier = modifier.height(52.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.elevatedButtonColors(
+            containerColor = color,
+            contentColor = Color.White
+        )
+    ) {
+        Icon(
+            imageVector = Icons.Default.ListAlt,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = "Ground Equipment Scope",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 

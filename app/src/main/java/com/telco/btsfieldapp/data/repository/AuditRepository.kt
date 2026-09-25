@@ -63,7 +63,7 @@ class AuditRepository @Inject constructor(
             val request = AuditSyncRequest(
                 siteId = siteId,
                 site = null,
-                ground = if (type == "ground") listOf(data) else null,
+                ground = if (type == "ground" || type == "ground_equipment") listOf(data) else null,
                 dcdb = if (type == "dcdb") listOf(data) else null,
                 tower = if (type == "tower") listOf(data) else null
             )

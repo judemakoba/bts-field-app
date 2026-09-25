@@ -7,6 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.telco.btsfieldapp.ui.audit.AuditScreen
+import com.telco.btsfieldapp.ui.audit.GroundEquipmentScreen
 import com.telco.btsfieldapp.ui.auth.LoginScreen
 import com.telco.btsfieldapp.ui.camera.CameraScreenPlaceholder
 import com.telco.btsfieldapp.ui.detail.SiteDetailScreen
@@ -23,6 +24,9 @@ sealed class Screen(val route: String) {
     }
     data object Camera : Screen("camera/{siteId}/{auditType}") {
         fun createRoute(siteId: String, auditType: String) = "camera/$siteId/$auditType"
+    }
+    data object GroundEquipment : Screen("ground_equipment/{siteId}") {
+        fun createRoute(siteId: String) = "ground_equipment/$siteId"
     }
 }
 
@@ -66,6 +70,9 @@ fun NavGraph(
                 onBack = { navController.popBackStack() },
                 onStartAudit = { siteId, auditType ->
                     navController.navigate(Screen.Audit.createRoute(siteId, auditType))
+                },
+                onOpenGroundEquipment = { siteId ->
+                    navController.navigate(Screen.GroundEquipment.createRoute(siteId))
                 }
             )
         }
@@ -95,6 +102,19 @@ fun NavGraph(
         ) {
             CameraScreenPlaceholder(
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.GroundEquipment.route,
+            arguments = listOf(navArgument("siteId") { type = NavType.StringType })
+        ) {
+            GroundEquipmentScreen(
+                onBack = { navController.popBackStack() },
+                onSuccess = { navController.popBackStack() },
+                onCapturePhoto = { siteId, sectionKey ->
+                    navController.navigate(Screen.Camera.createRoute(siteId, sectionKey))
+                }
             )
         }
     }
