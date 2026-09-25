@@ -21,7 +21,7 @@ import com.telco.btsfieldapp.domain.model.DcdbRecord
 import com.telco.btsfieldapp.domain.model.GroundRecord
 import com.telco.btsfieldapp.domain.model.TowerRecord
 import com.telco.btsfieldapp.domain.model.Site
-import com.telco.btsfieldapp.ui.audit.AuditType
+
 import com.telco.btsfieldapp.ui.theme.*
 import java.time.Instant
 import java.time.ZoneId
@@ -31,7 +31,6 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun SiteDetailScreen(
     onBack: () -> Unit,
-    onStartAudit: (String, String) -> Unit,
     onOpenGroundEquipment: (String) -> Unit,
     viewModel: SiteDetailViewModel = hiltViewModel()
 ) {
@@ -86,7 +85,6 @@ fun SiteDetailScreen(
                 item {
                     QuickActionsRow(
                         siteId = uiState.site?.siteId ?: "",
-                        onStartAudit = onStartAudit,
                         onOpenGroundEquipment = onOpenGroundEquipment
                     )
                 }
@@ -287,7 +285,6 @@ private fun InfoRow(
 @Composable
 private fun QuickActionsRow(
     siteId: String,
-    onStartAudit: (String, String) -> Unit,
     onOpenGroundEquipment: (String) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -303,33 +300,6 @@ private fun QuickActionsRow(
             onClick = { onOpenGroundEquipment(siteId) },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            AuditType.entries.take(2).forEach { type ->
-                AuditTypeButton(
-                    type = type,
-                    onClick = { onStartAudit(siteId, type.key) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            AuditType.entries.drop(2).forEach { type ->
-                AuditTypeButton(
-                    type = type,
-                    onClick = { onStartAudit(siteId, type.key) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
     }
 }
 
@@ -359,52 +329,6 @@ private fun GroundEquipmentScopeButton(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
-    }
-}
-
-@Composable
-private fun AuditTypeButton(
-    type: AuditType,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val (icon, color) = when (type) {
-        AuditType.GROUND -> Icons.Default.Landscape to Color(0xFF22C55E)
-        AuditType.DCDB -> Icons.Default.ElectricalServices to Color(0xFFF59E0B)
-        AuditType.TOWER -> Icons.Default.Architecture to Color(0xFF3B82F6)
-        AuditType.EQUIPMENT -> Icons.Default.DevicesOther to Color(0xFF8B5CF6)
-    }
-
-    OutlinedCard(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = color.copy(alpha = 0.08f)
-        ),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = type.label,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium,
-                color = color
-            )
-        }
     }
 }
 

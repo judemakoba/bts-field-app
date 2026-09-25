@@ -6,7 +6,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.telco.btsfieldapp.ui.audit.AuditScreen
+
 import com.telco.btsfieldapp.ui.audit.GroundEquipmentScreen
 import com.telco.btsfieldapp.ui.auth.LoginScreen
 import com.telco.btsfieldapp.ui.camera.CameraScreenPlaceholder
@@ -18,9 +18,6 @@ sealed class Screen(val route: String) {
     data object Sites : Screen("sites")
     data object SiteDetail : Screen("site/{siteId}") {
         fun createRoute(siteId: String) = "site/$siteId"
-    }
-    data object Audit : Screen("audit/{siteId}/{auditType}") {
-        fun createRoute(siteId: String, auditType: String) = "audit/$siteId/$auditType"
     }
     data object Camera : Screen("camera/{siteId}/{auditType}") {
         fun createRoute(siteId: String, auditType: String) = "camera/$siteId/$auditType"
@@ -68,27 +65,8 @@ fun NavGraph(
         ) {
             SiteDetailScreen(
                 onBack = { navController.popBackStack() },
-                onStartAudit = { siteId, auditType ->
-                    navController.navigate(Screen.Audit.createRoute(siteId, auditType))
-                },
                 onOpenGroundEquipment = { siteId ->
                     navController.navigate(Screen.GroundEquipment.createRoute(siteId))
-                }
-            )
-        }
-
-        composable(
-            route = Screen.Audit.route,
-            arguments = listOf(
-                navArgument("siteId") { type = NavType.StringType },
-                navArgument("auditType") { type = NavType.StringType }
-            )
-        ) {
-            AuditScreen(
-                onBack = { navController.popBackStack() },
-                onSuccess = { navController.popBackStack() },
-                onCapturePhoto = { siteId, auditType ->
-                    navController.navigate(Screen.Camera.createRoute(siteId, auditType))
                 }
             )
         }
