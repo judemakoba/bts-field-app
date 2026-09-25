@@ -40,7 +40,8 @@ data class CameraUiState(
     val capturedPhotoPath: String? = null,
     val error: String? = null,
     val isCapturing: Boolean = false,
-    // GPS state
+    // GPS state — "fetching" | "ready" | "unavailable"
+    val locationStatus: String = "fetching",
     val latitude: String = "Fetching...",
     val longitude: String = "Fetching...",
     val gpsAccuracy: String = "—",
@@ -77,6 +78,7 @@ class CameraViewModel @Inject constructor(
     private var imageCapture: ImageCapture? = null
     private var cameraProvider: ProcessCameraProvider? = null
     private var locationManager: LocationManager? = null
+    private var usingNetworkProvider = false
 
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(loc: Location) {
@@ -86,7 +88,8 @@ class CameraViewModel @Inject constructor(
                     longitude = "%.6f".format(loc.longitude),
                     gpsAccuracy = if (loc.hasAccuracy()) "<${loc.accuracy.toInt()}m" else "—",
                     altitude = if (loc.hasAltitude()) "${loc.altitude.toInt()}m" else "—",
-                    isGpsAvailable = true
+                    isGpsAvailable = true,
+                    locationStatus = "ready"
                 )
             }
         }
@@ -124,25 +127,90 @@ class CameraViewModel @Inject constructor(
     private fun startLocationUpdates() {
         locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         try {
+            // Step 1: Try to get cached location immediately (fastest)
+            val cachedLoc = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                ?: locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+            if (cachedLoc != null) {
+                _uiState.update { s ->
+                    s.copy(
+                        latitude = "%.6f".format(cachedLoc.latitude),
+                        longitude = "%.6f".format(cachedLoc.longitude),
+                        gpsAccuracy = if (cachedLoc.hasAccuracy()) "<${cachedLoc.accuracy.toInt()}m" else "—",
+                        altitude = if (cachedLoc.hasAltitude()) "${cachedLoc.altitude.toInt()}m" else "—",
+                        isGpsAvailable = true,
+                        locationStatus = "ready"
+                    )
+                }
+                // Still register for live updates
+                requestGpsUpdates()
+                return
+            }
+
+            // Step 2: No cached location — try GPS first, fallback to network
+            if (isGpsEnabled()) {
+                requestGpsUpdates()
+                // Give GPS 8 seconds to get a fix, then fall back to network
+                viewModelScope.launch {
+                    kotlinx.coroutines.delay(8_000)
+                    // If still no fix, try network provider
+                    if (!_uiState.value.isGpsAvailable) {
+                        requestNetworkUpdates()
+                    }
+                }
+            } else {
+                // GPS is off/denied — go straight to network
+                requestNetworkUpdates()
+            }
+        } catch (e: Exception) {
+            _uiState.update { it.copy(error = "Location error: ${e.message}") }
+            requestNetworkUpdates()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun isGpsEnabled(): Boolean {
+        return try {
+            locationManager?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true
+        } catch (_: Exception) { false }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun requestGpsUpdates() {
+        try {
             locationManager?.requestLocationUpdates(
                 LocationManager.GPS_PROVIDER,
-                2000L, 2f, locationListener
+                1000L, 1f, locationListener
             )
-            val lastLoc = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                ?: locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-            lastLoc?.let { loc ->
+        } catch (_: Exception) {
+            requestNetworkUpdates()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun requestNetworkUpdates() {
+        usingNetworkProvider = true
+        try {
+            locationManager?.requestLocationUpdates(
+                LocationManager.NETWORK_PROVIDER,
+                1000L, 1f, locationListener
+            )
+            // Try cached network location too
+            val cached = locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+            cached?.let { loc ->
                 _uiState.update { s ->
                     s.copy(
                         latitude = "%.6f".format(loc.latitude),
                         longitude = "%.6f".format(loc.longitude),
                         gpsAccuracy = if (loc.hasAccuracy()) "<${loc.accuracy.toInt()}m" else "—",
-                        altitude = if (loc.hasAltitude()) "${loc.altitude.toInt()}m" else "—",
-                        isGpsAvailable = true
+                        altitude = "—",
+                        isGpsAvailable = true,
+                        locationStatus = "ready"
                     )
                 }
             }
         } catch (_: Exception) {
-            _uiState.update { it.copy(latitude = "N/A", longitude = "N/A", isGpsAvailable = false) }
+            // Last resort: show N/A but allow capture
+            _uiState.update { it.copy(isGpsAvailable = false, locationStatus = "unavailable") }
         }
     }
 
@@ -182,10 +250,11 @@ class CameraViewModel @Inject constructor(
         }
 
         val state = _uiState.value
-        if (state.latitude == "Fetching..." || state.latitude == "N/A") {
-            viewModelScope.launch { _events.emit(CameraEvent.Error("GPS not available — please move outdoors and wait")) }
+        if (state.latitude == "Fetching...") {
+            viewModelScope.launch { _events.emit(CameraEvent.Error("Still acquiring location — please wait a moment")) }
             return
         }
+        // Allow capture even with N/A (no GPS) — watermark will show N/A but photo can still be taken
 
         _uiState.update { it.copy(isCapturing = true) }
 

@@ -232,12 +232,9 @@ fun CameraScreen(
                     .padding(bottom = 32.dp)
             ) {
                 CaptureButton(
-                    enabled = uiState.latitude != "Fetching..." &&
-                            uiState.latitude != "N/A" &&
-                            uiState.isInitialized &&
-                            !uiState.isCapturing,
+                    enabled = uiState.isInitialized && !uiState.isCapturing,
                     isCapturing = uiState.isCapturing,
-                    gpsReady = uiState.isGpsAvailable,
+                    locationStatus = uiState.locationStatus,
                     onClick = { viewModel.capturePhoto() }
                 )
             }
@@ -331,20 +328,18 @@ private fun GpsInfoCard(
 private fun CaptureButton(
     enabled: Boolean,
     isCapturing: Boolean,
-    gpsReady: Boolean,
+    locationStatus: String,
     onClick: () -> Unit
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        if (!gpsReady) {
+        val statusText = when (locationStatus) {
+            "fetching" -> "Acquiring GPS..."
+            "unavailable" -> "No location — tap to capture"
+            else -> if (enabled) "Tap to capture" else ""
+        }
+        if (statusText.isNotBlank()) {
             Text(
-                text = "Acquiring GPS signal...",
-                style = MaterialTheme.typography.labelSmall,
-                color = ComposeColor.White.copy(alpha = 0.7f),
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-        } else if (enabled) {
-            Text(
-                text = "Tap to capture",
+                text = statusText,
                 style = MaterialTheme.typography.labelSmall,
                 color = ComposeColor.White.copy(alpha = 0.7f),
                 modifier = Modifier.padding(bottom = 8.dp)
