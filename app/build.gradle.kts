@@ -7,14 +7,14 @@ plugins {
 
 android {
     namespace = "com.telco.btsfieldapp"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.telco.btsfieldapp"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 11
-        versionName = "1.0.10"
+        targetSdk = 33
+        versionCode = 12
+        versionName = "1.0.11"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

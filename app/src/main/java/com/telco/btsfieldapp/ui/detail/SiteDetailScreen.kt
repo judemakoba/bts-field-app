@@ -33,6 +33,7 @@ fun SiteDetailScreen(
     onBack: () -> Unit,
     onOpenGroundEquipment: (String) -> Unit,
     onOpenDcdbInfo: (String) -> Unit,
+    onOpenTowerInfo: (String) -> Unit,
     viewModel: SiteDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -87,7 +88,8 @@ fun SiteDetailScreen(
                     QuickActionsRow(
                         siteId = uiState.site?.siteId ?: "",
                         onOpenGroundEquipment = onOpenGroundEquipment,
-                        onOpenDcdbInfo = onOpenDcdbInfo
+                        onOpenDcdbInfo = onOpenDcdbInfo,
+                        onOpenTowerInfo = onOpenTowerInfo
                     )
                 }
 
@@ -288,7 +290,8 @@ private fun InfoRow(
 private fun QuickActionsRow(
     siteId: String,
     onOpenGroundEquipment: (String) -> Unit,
-    onOpenDcdbInfo: (String) -> Unit
+    onOpenDcdbInfo: (String) -> Unit,
+    onOpenTowerInfo: (String) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(
@@ -309,13 +312,13 @@ private fun QuickActionsRow(
         )
         Spacer(Modifier.height(8.dp))
 
-        // Tower Equipment Scope — disabled
+        // Tower Equipment Scope — active
         ScopeButton(
             text = "Tower Equipment Scope",
             icon = Icons.Default.Architecture,
             color = Color(0xFF3B82F6),
-            enabled = false,
-            onClick = {},
+            enabled = true,
+            onClick = { onOpenTowerInfo(siteId) },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(8.dp))
