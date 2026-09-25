@@ -1,5 +1,7 @@
 package com.telco.btsfieldapp.ui.audit
 
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -23,10 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.telco.btsfieldapp.ui.theme.*
 import kotlinx.coroutines.flow.collectLatest
 import java.time.Instant
@@ -52,11 +56,12 @@ private val INDOOR_OUTDOOR_OPTIONS = listOf("Indoor", "Outdoor")
 fun GroundEquipmentScreen(
     onBack: () -> Unit,
     onSuccess: () -> Unit,
-    onCapturePhoto: (String, String) -> Unit,
+    onCapturePhoto: (String, String, String, String) -> Unit,
     viewModel: GroundEquipmentViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     // Handle success
     LaunchedEffect(Unit) {
@@ -71,6 +76,34 @@ fun GroundEquipmentScreen(
     LaunchedEffect(uiState.submitError) {
         uiState.submitError?.let {
             snackbarHostState.showSnackbar(it)
+        }
+    }
+
+    // Check for pending photo result from camera
+    LaunchedEffect(uiState.siteId) {
+        if (uiState.siteId.isBlank()) return@LaunchedEffect
+        val prefs = context.getSharedPreferences("photo_results", Context.MODE_PRIVATE)
+        // Poll for any photo result (called from camera)
+        listOf(
+            "site_name_plate", "site_photo", "gps_screenshot",
+            "rru_photo", "cabinet_photo", "cabinet_dim_photo",
+            "slab_photo", "redundant_photo", "non_active_idu_photo"
+        ).forEach { key ->
+            val photoKey = "${uiState.siteId}__$key"
+            prefs.getString(photoKey, null)?.let { path ->
+                prefs.edit().remove(photoKey).apply()
+                when (key) {
+                    "site_name_plate" -> viewModel.onSiteNamePlatePhoto(path)
+                    "site_photo" -> viewModel.onSitePhoto(path)
+                    "gps_screenshot" -> viewModel.onGpsScreenshot(path)
+                    "rru_photo" -> viewModel.addRruPhoto(path)
+                    "cabinet_photo" -> viewModel.addCabinetPhoto(path)
+                    "cabinet_dim_photo" -> viewModel.addCabinetDimensionPhoto(path)
+                    "slab_photo" -> viewModel.addSlabPhoto(path)
+                    "redundant_photo" -> viewModel.addRedundantPhoto(path)
+                    "non_active_idu_photo" -> viewModel.addNonActiveIduPhoto(path)
+                }
+            }
         }
     }
 
@@ -159,7 +192,7 @@ fun GroundEquipmentScreen(
                     PhotoCaptureRow(
                         label = "Site Name Plate Photo",
                         photos = uiState.siteNamePlatePhotoPath?.let { listOf(it) } ?: emptyList(),
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "site_name_plate") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "site_name_plate") },
                         onRemovePhoto = { viewModel.onSiteNamePlatePhoto("") },
                         maxPhotos = 1
                     )
@@ -262,7 +295,7 @@ fun GroundEquipmentScreen(
                     PhotoCaptureRow(
                         label = "GPS Screenshot (Accuracy < 4m)",
                         photos = uiState.gpsScreenshotPath?.let { listOf(it) } ?: emptyList(),
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "gps_screenshot") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "gps_screenshot") },
                         onRemovePhoto = { viewModel.onGpsScreenshot("") },
                         maxPhotos = 1
                     )
@@ -331,7 +364,7 @@ fun GroundEquipmentScreen(
                     PhotoCaptureRow(
                         label = "Site Photo",
                         photos = uiState.sitePhotoPath?.let { listOf(it) } ?: emptyList(),
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "site_photo") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "site_photo") },
                         onRemovePhoto = { viewModel.onSitePhoto("") },
                         maxPhotos = 1
                     )
@@ -408,7 +441,7 @@ fun GroundEquipmentScreen(
                     PhotoCaptureRow(
                         label = "RRU Photos (max 4)",
                         photos = uiState.rruPhotoPaths,
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "rru_photo") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "rru_photo") },
                         onRemovePhoto = viewModel::removeRruPhoto,
                         maxPhotos = 4
                     )
@@ -431,7 +464,7 @@ fun GroundEquipmentScreen(
                     PhotoCaptureRow(
                         label = "Cabinet Photos (max 20)",
                         photos = uiState.cabinetPhotoPaths,
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "cabinet_photo") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "cabinet_photo") },
                         onRemovePhoto = viewModel::removeCabinetPhoto,
                         maxPhotos = 20
                     )
@@ -459,7 +492,7 @@ fun GroundEquipmentScreen(
                     PhotoCaptureRow(
                         label = "Cabinet Dimension Photos (L, W, H) — max 3",
                         photos = uiState.cabinetDimensionPhotoPaths,
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "cabinet_dim") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "cabinet_dim") },
                         onRemovePhoto = viewModel::removeCabinetDimensionPhoto,
                         maxPhotos = 3
                     )
@@ -489,7 +522,7 @@ fun GroundEquipmentScreen(
                     PhotoCaptureRow(
                         label = "Non-Active IDU Photos (max 5)",
                         photos = uiState.nonActiveIduPhotoPaths,
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "nonactive_idu") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "nonactive_idu") },
                         onRemovePhoto = viewModel::removeNonActiveIduPhoto,
                         maxPhotos = 5
                     )
@@ -515,7 +548,7 @@ fun GroundEquipmentScreen(
                     PhotoCaptureRow(
                         label = "Slab Photos (Overview + 2 Dims) — max 3",
                         photos = uiState.slabPhotoPaths,
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "slab_photo") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "slab_photo") },
                         onRemovePhoto = viewModel::removeSlabPhoto,
                         maxPhotos = 3
                     )
@@ -549,7 +582,7 @@ fun GroundEquipmentScreen(
                     PhotoCaptureRow(
                         label = "Redundant Equipment Photos (max 3)",
                         photos = uiState.redundantPhotoPaths,
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "redundant_photo") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "redundant_photo") },
                         onRemovePhoto = viewModel::removeRedundantPhoto,
                         maxPhotos = 3
                     )

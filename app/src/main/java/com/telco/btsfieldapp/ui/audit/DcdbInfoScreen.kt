@@ -41,7 +41,7 @@ private val SECTION_COLORS = listOf(
 fun DcdbInfoScreen(
     onBack: () -> Unit,
     onSuccess: () -> Unit,
-    onCapturePhoto: (String, String) -> Unit,
+    onCapturePhoto: (String, String, String, String) -> Unit,
     viewModel: DcdbInfoViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -204,7 +204,7 @@ fun DcdbInfoScreen(
                     PhotoCaptureRow(
                         label = "Non-Priority DCDB Section Photo",
                         photos = listOfNotNull(uiState.npSectionPhotoPath),
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "dcdb_np_section") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_np_section") },
                         onRemovePhoto = { viewModel.onNpSectionPhoto("") },
                         maxPhotos = 1
                     )
@@ -219,7 +219,7 @@ fun DcdbInfoScreen(
                     PhotoCaptureRow(
                         label = "Load Measurement Photo (Meter Reading)",
                         photos = listOfNotNull(uiState.npLoadPhotoPath),
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "dcdb_np_load") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_np_load") },
                         onRemovePhoto = { viewModel.onNpLoadPhoto("") },
                         maxPhotos = 1
                     )
@@ -300,7 +300,7 @@ fun DcdbInfoScreen(
                     PhotoCaptureRow(
                         label = "Priority DCDB Section Photo",
                         photos = listOfNotNull(uiState.pSectionPhotoPath),
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "dcdb_p_section") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_p_section") },
                         onRemovePhoto = { viewModel.onPSectionPhoto("") },
                         maxPhotos = 1
                     )
@@ -315,7 +315,7 @@ fun DcdbInfoScreen(
                     PhotoCaptureRow(
                         label = "Load Measurement Photo (Meter Reading)",
                         photos = listOfNotNull(uiState.pLoadPhotoPath),
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, "dcdb_p_load") },
+                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_p_load") },
                         onRemovePhoto = { viewModel.onPLoadPhoto("") },
                         maxPhotos = 1
                     )
@@ -358,7 +358,7 @@ fun DcdbInfoScreen(
                             )
                             val hasPhoto = conn.photoPath != null
                             OutlinedButton(
-                                onClick = { onCapturePhoto(uiState.siteId, "dcdb_np_conn_$idx") },
+                                onClick = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_np_conn_$idx") },
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Icon(
@@ -411,7 +411,7 @@ fun DcdbInfoScreen(
                             )
                             val hasPhoto = conn.photoPath != null
                             OutlinedButton(
-                                onClick = { onCapturePhoto(uiState.siteId, "dcdb_p_conn_$idx") },
+                                onClick = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_p_conn_$idx") },
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Icon(

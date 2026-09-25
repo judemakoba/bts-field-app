@@ -42,7 +42,7 @@ private val LABEL_OPTIONS = listOf("Done", "Not Done")
 fun TowerInfoScreen(
     onBack: () -> Unit,
     onSuccess: () -> Unit,
-    onCapturePhoto: (String, String) -> Unit,
+    onCapturePhoto: (String, String, String, String) -> Unit,
     viewModel: TowerInfoViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -149,8 +149,10 @@ fun TowerInfoScreen(
                     antenna = antenna,
                     index = idx,
                     isLast = uiState.antennas.size == 1,
-                    onCapturePhoto = { entryId, photoType ->
-                        onCapturePhoto(uiState.siteId, "tower_ant_${entryId}_$photoType")
+                    siteName = uiState.siteName,
+                    locationSummary = uiState.locationSummary,
+                    onCapturePhoto = { entryId, photoType, siteName, locationSummary ->
+                        onCapturePhoto(uiState.siteId, siteName, locationSummary, "tower_ant_${entryId}_$photoType")
                     },
                     onPhotoReceived = { entryId, photoType, path ->
                         viewModel.onAntennaPhoto(entryId, photoType, path)
@@ -211,8 +213,10 @@ fun TowerInfoScreen(
                     rru = rru,
                     index = idx,
                     isLast = uiState.rrus.size == 1,
-                    onCapturePhoto = { entryId, photoType ->
-                        onCapturePhoto(uiState.siteId, "tower_rru_${entryId}_$photoType")
+                    siteName = uiState.siteName,
+                    locationSummary = uiState.locationSummary,
+                    onCapturePhoto = { entryId, photoType, siteName, locationSummary ->
+                        onCapturePhoto(uiState.siteId, siteName, locationSummary, "tower_rru_${entryId}_$photoType")
                     },
                     onPhotoReceived = { entryId, photoType, path ->
                         viewModel.onRruPhoto(entryId, photoType, path)
@@ -257,7 +261,9 @@ private fun AntennaEntryCard(
     antenna: AntennaEntry,
     index: Int,
     isLast: Boolean,
-    onCapturePhoto: (String, String) -> Unit,
+    siteName: String,
+    locationSummary: String,
+    onCapturePhoto: (String, String, String, String) -> Unit,
     onPhotoReceived: (String, String, String) -> Unit,
     onEquipmentTypeChange: (String) -> Unit,
     onManufacturerChange: (String) -> Unit,
@@ -418,14 +424,14 @@ private fun AntennaEntryCard(
                 PhotoButton(
                     label = "Model Plate",
                     hasPhoto = antenna.modelPlatePhoto != null,
-                    onClick = { onCapturePhoto(antenna.id, "model_plate") },
+                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_model_plate") },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
                 PhotoButton(
                     label = "Ports",
                     hasPhoto = antenna.portsPhoto != null,
-                    onClick = { onCapturePhoto(antenna.id, "ports") },
+                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_ports") },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
@@ -439,21 +445,21 @@ private fun AntennaEntryCard(
                 PhotoButton(
                     label = "Dim 1",
                     hasPhoto = antenna.dimensionsPhoto1 != null,
-                    onClick = { onCapturePhoto(antenna.id, "dim1") },
+                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_dim1") },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
                 PhotoButton(
                     label = "Dim 2",
                     hasPhoto = antenna.dimensionsPhoto2 != null,
-                    onClick = { onCapturePhoto(antenna.id, "dim2") },
+                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_dim2") },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
                 PhotoButton(
                     label = "Dim 3",
                     hasPhoto = antenna.dimensionsPhoto3 != null,
-                    onClick = { onCapturePhoto(antenna.id, "dim3") },
+                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_dim3") },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
@@ -464,14 +470,14 @@ private fun AntennaEntryCard(
                 PhotoButton(
                     label = "Azimuth",
                     hasPhoto = antenna.azimuthPhoto != null,
-                    onClick = { onCapturePhoto(antenna.id, "azimuth") },
+                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_azimuth") },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
                 PhotoButton(
                     label = "Height",
                     hasPhoto = antenna.heightPhoto != null,
-                    onClick = { onCapturePhoto(antenna.id, "height") },
+                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_height") },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
@@ -488,7 +494,9 @@ private fun RruEntryCard(
     rru: RruEntry,
     index: Int,
     isLast: Boolean,
-    onCapturePhoto: (String, String) -> Unit,
+    siteName: String,
+    locationSummary: String,
+    onCapturePhoto: (String, String, String, String) -> Unit,
     onPhotoReceived: (String, String, String) -> Unit,
     onEquipmentTypeChange: (String) -> Unit,
     onManufacturerChange: (String) -> Unit,
@@ -622,7 +630,7 @@ private fun RruEntryCard(
             PhotoButton(
                 label = "Model Plate",
                 hasPhoto = rru.modelPlatePhoto != null,
-                onClick = { onCapturePhoto(rru.id, "model_plate") },
+                onClick = { onCapturePhoto(rru.id, siteName, locationSummary, "tower_rru_${rru.id}_model_plate") },
                 color = SECTION_COLORS[1],
                 modifier = Modifier.fillMaxWidth()
             )
@@ -634,21 +642,21 @@ private fun RruEntryCard(
                 PhotoButton(
                     label = "Dim 1",
                     hasPhoto = rru.dimensionsPhoto1 != null,
-                    onClick = { onCapturePhoto(rru.id, "dim1") },
+                    onClick = { onCapturePhoto(rru.id, siteName, locationSummary, "tower_rru_${rru.id}_dim1") },
                     color = SECTION_COLORS[1],
                     modifier = Modifier.weight(1f)
                 )
                 PhotoButton(
                     label = "Dim 2",
                     hasPhoto = rru.dimensionsPhoto2 != null,
-                    onClick = { onCapturePhoto(rru.id, "dim2") },
+                    onClick = { onCapturePhoto(rru.id, siteName, locationSummary, "tower_rru_${rru.id}_dim2") },
                     color = SECTION_COLORS[1],
                     modifier = Modifier.weight(1f)
                 )
                 PhotoButton(
                     label = "Dim 3",
                     hasPhoto = rru.dimensionsPhoto3 != null,
-                    onClick = { onCapturePhoto(rru.id, "dim3") },
+                    onClick = { onCapturePhoto(rru.id, siteName, locationSummary, "tower_rru_${rru.id}_dim3") },
                     color = SECTION_COLORS[1],
                     modifier = Modifier.weight(1f)
                 )

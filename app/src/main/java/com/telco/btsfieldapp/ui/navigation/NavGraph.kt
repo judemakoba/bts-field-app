@@ -11,7 +11,7 @@ import com.telco.btsfieldapp.ui.audit.DcdbInfoScreen
 import com.telco.btsfieldapp.ui.audit.GroundEquipmentScreen
 import com.telco.btsfieldapp.ui.audit.TowerInfoScreen
 import com.telco.btsfieldapp.ui.auth.LoginScreen
-import com.telco.btsfieldapp.ui.camera.CameraScreenPlaceholder
+import com.telco.btsfieldapp.ui.camera.CameraScreen
 import com.telco.btsfieldapp.ui.detail.SiteDetailScreen
 import com.telco.btsfieldapp.ui.sites.SitesScreen
 
@@ -21,8 +21,9 @@ sealed class Screen(val route: String) {
     data object SiteDetail : Screen("site/{siteId}") {
         fun createRoute(siteId: String) = "site/$siteId"
     }
-    data object Camera : Screen("camera/{siteId}/{auditType}") {
-        fun createRoute(siteId: String, auditType: String) = "camera/$siteId/$auditType"
+    data object Camera : Screen("camera/{siteId}/{auditType}/{siteName}/{locationSummary}") {
+        fun createRoute(siteId: String, auditType: String, siteName: String, locationSummary: String) =
+            "camera/${siteId}/${auditType}/${siteName}/${locationSummary}"
     }
     data object GroundEquipment : Screen("ground_equipment/{siteId}") {
         fun createRoute(siteId: String) = "ground_equipment/$siteId"
@@ -89,10 +90,12 @@ fun NavGraph(
             route = Screen.Camera.route,
             arguments = listOf(
                 navArgument("siteId") { type = NavType.StringType },
-                navArgument("auditType") { type = NavType.StringType }
+                navArgument("auditType") { type = NavType.StringType },
+                navArgument("siteName") { type = NavType.StringType },
+                navArgument("locationSummary") { type = NavType.StringType }
             )
         ) {
-            CameraScreenPlaceholder(
+            CameraScreen(
                 onBack = { navController.popBackStack() }
             )
         }
@@ -104,8 +107,8 @@ fun NavGraph(
             GroundEquipmentScreen(
                 onBack = { navController.popBackStack() },
                 onSuccess = { navController.popBackStack() },
-                onCapturePhoto = { siteId, sectionKey ->
-                    navController.navigate(Screen.Camera.createRoute(siteId, sectionKey))
+                onCapturePhoto = { siteId, siteName, locationSummary, auditType ->
+                    navController.navigate(Screen.Camera.createRoute(siteId, auditType, siteName, locationSummary))
                 }
             )
         }
@@ -117,8 +120,8 @@ fun NavGraph(
             DcdbInfoScreen(
                 onBack = { navController.popBackStack() },
                 onSuccess = { navController.popBackStack() },
-                onCapturePhoto = { siteId, sectionKey ->
-                    navController.navigate(Screen.Camera.createRoute(siteId, sectionKey))
+                onCapturePhoto = { siteId, siteName, locationSummary, auditType ->
+                    navController.navigate(Screen.Camera.createRoute(siteId, auditType, siteName, locationSummary))
                 }
             )
         }
@@ -130,8 +133,8 @@ fun NavGraph(
             TowerInfoScreen(
                 onBack = { navController.popBackStack() },
                 onSuccess = { navController.popBackStack() },
-                onCapturePhoto = { siteId, sectionKey ->
-                    navController.navigate(Screen.Camera.createRoute(siteId, sectionKey))
+                onCapturePhoto = { siteId, siteName, locationSummary, auditType ->
+                    navController.navigate(Screen.Camera.createRoute(siteId, auditType, siteName, locationSummary))
                 }
             )
         }

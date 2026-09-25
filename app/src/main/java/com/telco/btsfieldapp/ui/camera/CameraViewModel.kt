@@ -6,7 +6,6 @@ import android.graphics.*
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
-import android.os.Build
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -17,6 +16,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.telco.btsfieldapp.data.repository.SiteRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -50,8 +50,7 @@ data class CameraUiState(
     val siteId: String = "",
     val siteName: String = "",
     val locationSummary: String = "Kampala",
-    // Camera ref
-    val imageCapture: ImageCapture? = null
+    val auditType: String = ""
 )
 
 sealed class CameraEvent {
@@ -62,21 +61,23 @@ sealed class CameraEvent {
 @HiltViewModel
 class CameraViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val siteRepository: SiteRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(CameraUiState(
-        siteId = savedStateHandle.get<String>("siteId") ?: "",
-        siteName = savedStateHandle.get<String>("siteName") ?: "",
-        locationSummary = savedStateHandle.get<String>("locationSummary") ?: "Kampala"
-    ))
+    private val siteId: String = savedStateHandle.get<String>("siteId") ?: ""
+    private val auditType: String = savedStateHandle.get<String>("auditType") ?: ""
+
+    private val _uiState = MutableStateFlow(CameraUiState(siteId = siteId, auditType = auditType))
     val uiState: StateFlow<CameraUiState> = _uiState.asStateFlow()
 
     private val _events = MutableSharedFlow<CameraEvent>()
     val events: SharedFlow<CameraEvent> = _events.asSharedFlow()
 
     private var imageCapture: ImageCapture? = null
+    private var cameraProvider: ProcessCameraProvider? = null
     private var locationManager: LocationManager? = null
+
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(loc: Location) {
             _uiState.update { state ->
@@ -100,6 +101,23 @@ class CameraViewModel @Inject constructor(
 
     init {
         startLocationUpdates()
+        loadSiteMetadata()
+    }
+
+    private fun loadSiteMetadata() {
+        viewModelScope.launch {
+            try {
+                val site = siteRepository.getSiteById(siteId)
+                _uiState.update { s ->
+                    s.copy(
+                        siteName = site?.name ?: "",
+                        locationSummary = site?.address?.takeIf { it.isNotBlank() } ?: "Kampala"
+                    )
+                }
+            } catch (_: Exception) {
+                // Use defaults
+            }
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -108,16 +126,13 @@ class CameraViewModel @Inject constructor(
         try {
             locationManager?.requestLocationUpdates(
                 LocationManager.GPS_PROVIDER,
-                2000L,   // minTime 2s
-                1f,      // minDistance 1m
-                locationListener
+                2000L, 2f, locationListener
             )
-            // Get last known location immediately
             val lastLoc = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                 ?: locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
             lastLoc?.let { loc ->
-                _uiState.update { state ->
-                    state.copy(
+                _uiState.update { s ->
+                    s.copy(
                         latitude = "%.6f".format(loc.latitude),
                         longitude = "%.6f".format(loc.longitude),
                         gpsAccuracy = if (loc.hasAccuracy()) "<${loc.accuracy.toInt()}m" else "—",
@@ -131,29 +146,28 @@ class CameraViewModel @Inject constructor(
         }
     }
 
-    fun initializeCamera(lifecycleOwner: LifecycleOwner) {
+    fun initializeCamera(lifecycleOwner: LifecycleOwner, previewView: androidx.camera.view.PreviewView) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             try {
-                val cameraProvider = cameraProviderFuture.get()
+                cameraProvider = cameraProviderFuture.get()
 
-                val preview = Preview.Builder().build()
+                val preview = Preview.Builder().build().also {
+                    it.setSurfaceProvider(previewView.getSurfaceProvider())
+                }
 
                 imageCapture = ImageCapture.Builder()
                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                     .build()
 
-                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
-                cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(
+                cameraProvider?.unbindAll()
+                cameraProvider?.bindToLifecycle(
                     lifecycleOwner,
-                    cameraSelector,
+                    CameraSelector.DEFAULT_BACK_CAMERA,
                     preview,
                     imageCapture
                 )
-
-                _uiState.update { it.copy(isInitialized = true, imageCapture = imageCapture) }
+                _uiState.update { it.copy(isInitialized = true) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = e.message ?: "Camera init failed") }
             }
@@ -161,20 +175,20 @@ class CameraViewModel @Inject constructor(
     }
 
     fun capturePhoto() {
-        val capture = imageCapture ?: run {
+        val capture = imageCapture
+        if (capture == null) {
             viewModelScope.launch { _events.emit(CameraEvent.Error("Camera not ready")) }
             return
         }
 
         val state = _uiState.value
         if (state.latitude == "Fetching..." || state.latitude == "N/A") {
-            viewModelScope.launch { _events.emit(CameraEvent.Error("GPS not available — please wait or move outdoors")) }
+            viewModelScope.launch { _events.emit(CameraEvent.Error("GPS not available — please move outdoors and wait")) }
             return
         }
 
         _uiState.update { it.copy(isCapturing = true) }
 
-        // Temp file in cache dir
         val tempFile = File(
             context.cacheDir,
             "temp_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.jpg"
@@ -191,8 +205,6 @@ class CameraViewModel @Inject constructor(
                             tempFile = tempFile,
                             lat = _uiState.value.latitude,
                             lng = _uiState.value.longitude,
-                            accuracy = _uiState.value.gpsAccuracy,
-                            altitude = _uiState.value.altitude,
                             siteId = _uiState.value.siteId,
                             siteName = _uiState.value.siteName,
                             locationSummary = _uiState.value.locationSummary
@@ -202,7 +214,9 @@ class CameraViewModel @Inject constructor(
 
                 override fun onError(exception: ImageCaptureException) {
                     _uiState.update { it.copy(isCapturing = false) }
-                    viewModelScope.launch { _events.emit(CameraEvent.Error(exception.message ?: "Capture failed")) }
+                    viewModelScope.launch {
+                        _events.emit(CameraEvent.Error(exception.message ?: "Capture failed"))
+                    }
                 }
             }
         )
@@ -212,25 +226,20 @@ class CameraViewModel @Inject constructor(
         tempFile: File,
         lat: String,
         lng: String,
-        accuracy: String,
-        altitude: String,
         siteId: String,
         siteName: String,
         locationSummary: String
     ) = withContext(Dispatchers.IO) {
         try {
-            // Read captured bitmap
             val options = BitmapFactory.Options().apply { inMutable = true }
             val bitmap = BitmapFactory.decodeFile(tempFile.absolutePath, options)
                 ?: throw Exception("Could not decode captured image")
 
             val mutableBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
             val canvas = Canvas(mutableBitmap)
-
             val w = mutableBitmap.width
             val h = mutableBitmap.height
 
-            // ── Watermark Paint ──────────────────────────────────────────────────
             val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.WHITE
                 textSize = if (w > 1080) h * 0.022f else h * 0.035f
@@ -239,7 +248,6 @@ class CameraViewModel @Inject constructor(
             }
 
             val timeStr = SimpleDateFormat("hh:mm:ss a", Locale.US).format(Date())
-
             val line1 = "$lat , $lng"
             val line2 = timeStr
             val line3 = if (siteName.isNotBlank()) "$siteId  |  $siteName" else siteId
@@ -249,33 +257,25 @@ class CameraViewModel @Inject constructor(
             val lineHeight = textPaint.fontSpacing
             val paddingH = w * 0.025f
             val paddingV = h * 0.018f
-
-            // Measure widest line for box width
             val boxWidth = lines.maxOf { textPaint.measureText(it) } + paddingH * 2
             val boxHeight = lineHeight * lines.size + paddingV * 2
-
-            // Box position: bottom-right
             val boxLeft = w - boxWidth
             val boxTop = h - boxHeight
             val boxRect = RectF(boxLeft, boxTop, w.toFloat(), h.toFloat())
 
-            // Draw translucent black background (20% opacity = 51/255)
             val bgPaint = Paint().apply {
                 color = Color.argb(51, 0, 0, 0)
                 style = Paint.Style.FILL
             }
             canvas.drawRect(boxRect, bgPaint)
 
-            // Draw each line of text, right-aligned to box right
             val textX = w - paddingH
             var textY = boxTop + paddingV + textPaint.textSize
-
             for (line in lines) {
                 canvas.drawText(line, textX, textY, textPaint)
                 textY += lineHeight
             }
 
-            // Save watermarked image to app's external files dir (accessible to app only)
             val photosDir = File(context.getExternalFilesDir(null), "audit_photos").apply { mkdirs() }
             val outputFile = File(
                 photosDir,
@@ -286,22 +286,26 @@ class CameraViewModel @Inject constructor(
                 mutableBitmap.compress(Bitmap.CompressFormat.JPEG, 88, out)
             }
 
-            // Clean up temp file
             tempFile.delete()
             mutableBitmap.recycle()
             bitmap.recycle()
 
             _uiState.update { it.copy(isCapturing = false, capturedPhotoPath = outputFile.absolutePath) }
-            _events.emit(CameraEvent.PhotoSaved(outputFile.absolutePath))
+            viewModelScope.launch {
+                _events.emit(CameraEvent.PhotoSaved(outputFile.absolutePath))
+            }
 
         } catch (e: Exception) {
             _uiState.update { it.copy(isCapturing = false) }
-            _events.emit(CameraEvent.Error("Failed to save photo: ${e.message}"))
+            viewModelScope.launch {
+                _events.emit(CameraEvent.Error("Failed to save photo: ${e.message}"))
+            }
         }
     }
 
     override fun onCleared() {
         super.onCleared()
         try { locationManager?.removeUpdates(locationListener) } catch (_: Exception) {}
+        cameraProvider?.unbindAll()
     }
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.telco.btsfieldapp.data.repository.AuditRepository
 import com.telco.btsfieldapp.data.repository.AuthRepository
+import com.telco.btsfieldapp.data.repository.SiteRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -86,7 +87,9 @@ data class GroundEquipmentUiState(
     val isSubmitting: Boolean = false,
     val submitError: String? = null,
     val expandedSections: Set<Int> = setOf(0), // section 0 open by default
-    val siteId: String = ""
+    val siteId: String = "",
+    val siteName: String = "",
+    val locationSummary: String = "Kampala"
 )
 
 sealed class GroundEquipmentEvent {
@@ -97,6 +100,7 @@ sealed class GroundEquipmentEvent {
 class GroundEquipmentViewModel @Inject constructor(
     private val auditRepository: AuditRepository,
     private val authRepository: AuthRepository,
+    private val siteRepository: SiteRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -110,6 +114,21 @@ class GroundEquipmentViewModel @Inject constructor(
 
     init {
         autoFillFromAccount()
+        loadSiteMetadata()
+    }
+
+    private fun loadSiteMetadata() {
+        viewModelScope.launch {
+            try {
+                val site = siteRepository.getSiteById(siteId)
+                _uiState.update { s ->
+                    s.copy(
+                        siteName = site?.name ?: "",
+                        locationSummary = site?.address?.takeIf { it.isNotBlank() } ?: "Kampala"
+                    )
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     private fun autoFillFromAccount() {

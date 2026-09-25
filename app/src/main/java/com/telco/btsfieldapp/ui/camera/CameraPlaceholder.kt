@@ -18,9 +18,8 @@ fun CameraScreenPlaceholder(
     val uiState by viewModel.uiState.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(Unit) {
-        viewModel.initializeCamera(lifecycleOwner)
-    }
+    // Placeholder — camera init not available without PreviewView
+    // viewModel.initializeCamera(lifecycleOwner, previewView)
 
     Scaffold(
         topBar = {

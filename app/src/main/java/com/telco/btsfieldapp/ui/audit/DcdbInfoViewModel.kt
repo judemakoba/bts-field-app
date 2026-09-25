@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.telco.btsfieldapp.data.repository.AuditRepository
 import com.telco.btsfieldapp.data.repository.AuthRepository
+import com.telco.btsfieldapp.data.repository.SiteRepository
 import com.telco.btsfieldapp.domain.model.DcduConnection
 import com.telco.btsfieldapp.domain.model.DcduSlot
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -96,7 +97,9 @@ data class DcdbInfoUiState(
     val isSubmitting: Boolean = false,
     val submitError: String? = null,
     val expandedSections: Set<Int> = setOf(0),
-    val siteId: String = ""
+    val siteId: String = "",
+    val siteName: String = "",
+    val locationSummary: String = "Kampala"
 )
 
 sealed class DcdbInfoEvent {
@@ -107,6 +110,7 @@ sealed class DcdbInfoEvent {
 class DcdbInfoViewModel @Inject constructor(
     private val auditRepository: AuditRepository,
     private val authRepository: AuthRepository,
+    private val siteRepository: SiteRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -117,6 +121,24 @@ class DcdbInfoViewModel @Inject constructor(
 
     private val _events = MutableSharedFlow<DcdbInfoEvent>()
     val events: SharedFlow<DcdbInfoEvent> = _events.asSharedFlow()
+
+    init {
+        loadSiteMetadata()
+    }
+
+    private fun loadSiteMetadata() {
+        viewModelScope.launch {
+            try {
+                val site = siteRepository.getSiteById(siteId)
+                _uiState.update { s ->
+                    s.copy(
+                        siteName = site?.name ?: "",
+                        locationSummary = site?.address?.takeIf { it.isNotBlank() } ?: "Kampala"
+                    )
+                }
+            } catch (_: Exception) { }
+        }
+    }
 
     // ── DCDB Non-Priority ─────────────────────────────────────────────────────
     fun onGridDistanceChange(v: String) = _uiState.update { it.copy(gridDistanceTo3Phase = v) }

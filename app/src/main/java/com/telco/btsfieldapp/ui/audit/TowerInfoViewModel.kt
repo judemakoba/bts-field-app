@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.telco.btsfieldapp.data.repository.AuditRepository
 import com.telco.btsfieldapp.data.repository.AuthRepository
+import com.telco.btsfieldapp.data.repository.SiteRepository
 import com.telco.btsfieldapp.domain.model.AntennaEntry
 import com.telco.btsfieldapp.domain.model.RruEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +27,9 @@ data class TowerInfoUiState(
     val isSubmitting: Boolean = false,
     val submitError: String? = null,
     val expandedSections: Set<Int> = setOf(0, 1),
-    val siteId: String = ""
+    val siteId: String = "",
+    val siteName: String = "",
+    val locationSummary: String = "Kampala"
 )
 
 sealed class TowerInfoEvent {
@@ -39,6 +42,7 @@ private fun newId() = UUID.randomUUID().toString().take(8)
 class TowerInfoViewModel @Inject constructor(
     private val auditRepository: AuditRepository,
     private val authRepository: AuthRepository,
+    private val siteRepository: SiteRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -49,6 +53,24 @@ class TowerInfoViewModel @Inject constructor(
 
     private val _events = MutableSharedFlow<TowerInfoEvent>()
     val events: SharedFlow<TowerInfoEvent> = _events.asSharedFlow()
+
+    init {
+        loadSiteMetadata()
+    }
+
+    private fun loadSiteMetadata() {
+        viewModelScope.launch {
+            try {
+                val site = siteRepository.getSiteById(siteId)
+                _uiState.update { s ->
+                    s.copy(
+                        siteName = site?.name ?: "",
+                        locationSummary = site?.address?.takeIf { it.isNotBlank() } ?: "Kampala"
+                    )
+                }
+            } catch (_: Exception) { }
+        }
+    }
 
     // ── Antenna helpers ────────────────────────────────────────────────────
     private fun findAntennaIndex(id: String) =
