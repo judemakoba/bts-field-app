@@ -295,40 +295,87 @@ private fun QuickActionsRow(
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        // Ground Equipment Scope — full width, prominent
-        GroundEquipmentScopeButton(
+        // Ground Equipment Scope — active
+        ScopeButton(
+            text = "Ground Equipment Scope",
+            icon = Icons.Default.ListAlt,
+            color = Color(0xFF22C55E),
+            enabled = true,
             onClick = { onOpenGroundEquipment(siteId) },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(8.dp))
+
+        // Tower Equipment Scope — disabled
+        ScopeButton(
+            text = "Tower Equipment Scope",
+            icon = Icons.Default.Architecture,
+            color = Color(0xFF3B82F6),
+            enabled = false,
+            onClick = {},
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(8.dp))
+
+        // DCDB Information — disabled
+        ScopeButton(
+            text = "DCDB Information",
+            icon = Icons.Default.ElectricalServices,
+            color = Color(0xFFF59E0B),
+            enabled = false,
+            onClick = {},
             modifier = Modifier.fillMaxWidth()
         )
     }
 }
 
 @Composable
-private fun GroundEquipmentScopeButton(
+private fun ScopeButton(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val color = Color(0xFF22C55E)
-    ElevatedButton(
-        onClick = onClick,
-        modifier = modifier.height(52.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.elevatedButtonColors(
-            containerColor = color,
-            contentColor = Color.White
-        )
-    ) {
-        Icon(
-            imageVector = Icons.Default.ListAlt,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = "Ground Equipment Scope",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
+    if (enabled) {
+        ElevatedButton(
+            onClick = onClick,
+            modifier = modifier.height(52.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.elevatedButtonColors(
+                containerColor = color,
+                contentColor = Color.White
+            )
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier.height(52.dp),
+            enabled = false,
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = color.copy(alpha = 0.06f),
+                contentColor = color.copy(alpha = 0.5f),
+                disabledContainerColor = color.copy(alpha = 0.06f),
+                disabledContentColor = color.copy(alpha = 0.5f)
+            ),
+            border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "(Coming Soon)",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Normal
+            )
+        }
     }
 }
 
