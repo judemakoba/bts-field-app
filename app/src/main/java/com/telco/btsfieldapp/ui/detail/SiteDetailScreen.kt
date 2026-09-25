@@ -32,6 +32,7 @@ import java.time.format.DateTimeFormatter
 fun SiteDetailScreen(
     onBack: () -> Unit,
     onOpenGroundEquipment: (String) -> Unit,
+    onOpenDcdbInfo: (String) -> Unit,
     viewModel: SiteDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -85,7 +86,8 @@ fun SiteDetailScreen(
                 item {
                     QuickActionsRow(
                         siteId = uiState.site?.siteId ?: "",
-                        onOpenGroundEquipment = onOpenGroundEquipment
+                        onOpenGroundEquipment = onOpenGroundEquipment,
+                        onOpenDcdbInfo = onOpenDcdbInfo
                     )
                 }
 
@@ -285,7 +287,8 @@ private fun InfoRow(
 @Composable
 private fun QuickActionsRow(
     siteId: String,
-    onOpenGroundEquipment: (String) -> Unit
+    onOpenGroundEquipment: (String) -> Unit,
+    onOpenDcdbInfo: (String) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(
@@ -317,13 +320,13 @@ private fun QuickActionsRow(
         )
         Spacer(Modifier.height(8.dp))
 
-        // DCDB Information — disabled
+        // DCDB Information — active
         ScopeButton(
             text = "DCDB Information",
             icon = Icons.Default.ElectricalServices,
             color = Color(0xFFF59E0B),
-            enabled = false,
-            onClick = {},
+            enabled = true,
+            onClick = { onOpenDcdbInfo(siteId) },
             modifier = Modifier.fillMaxWidth()
         )
     }
