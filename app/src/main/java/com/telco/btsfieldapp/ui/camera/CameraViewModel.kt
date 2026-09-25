@@ -141,37 +141,33 @@ class CameraViewModel @Inject constructor(
                         locationStatus = "ready"
                     )
                 }
-                // Still register for live updates
+                // Keep registering for live GPS updates
                 requestGpsUpdates()
                 return
             }
 
-            // Step 2: No cached location — try GPS first, fallback to network
-            if (isGpsEnabled()) {
-                requestGpsUpdates()
-                // Give GPS 8 seconds to get a fix, then fall back to network
-                viewModelScope.launch {
-                    kotlinx.coroutines.delay(8_000)
-                    // If still no fix, try network provider
-                    if (!_uiState.value.isGpsAvailable) {
-                        requestNetworkUpdates()
-                    }
+            // Step 2: No cached location — try GPS first, network as fallback
+            requestGpsUpdates()
+            requestNetworkUpdates() // also start network in parallel for fastest fallback
+
+            // Give GPS up to 30 seconds to get a cold-start fix
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(30_000)
+                // GPS timed out — mark unavailable so user can still capture
+                if (_uiState.value.locationStatus == "fetching") {
+                    _uiState.update { it.copy(locationStatus = "unavailable") }
                 }
-            } else {
-                // GPS is off/denied — go straight to network
-                requestNetworkUpdates()
             }
         } catch (e: Exception) {
             _uiState.update { it.copy(error = "Location error: ${e.message}") }
             requestNetworkUpdates()
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(5_000)
+                if (_uiState.value.locationStatus == "fetching") {
+                    _uiState.update { it.copy(locationStatus = "unavailable") }
+                }
+            }
         }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun isGpsEnabled(): Boolean {
-        return try {
-            locationManager?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true
-        } catch (_: Exception) { false }
     }
 
     @SuppressLint("MissingPermission")
@@ -182,7 +178,7 @@ class CameraViewModel @Inject constructor(
                 1000L, 1f, locationListener
             )
         } catch (_: Exception) {
-            requestNetworkUpdates()
+            // GPS request failed — network will serve as fallback
         }
     }
 
@@ -194,14 +190,14 @@ class CameraViewModel @Inject constructor(
                 LocationManager.NETWORK_PROVIDER,
                 1000L, 1f, locationListener
             )
-            // Try cached network location too
+            // Try cached network location immediately
             val cached = locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-            cached?.let { loc ->
+            if (cached != null) {
                 _uiState.update { s ->
                     s.copy(
-                        latitude = "%.6f".format(loc.latitude),
-                        longitude = "%.6f".format(loc.longitude),
-                        gpsAccuracy = if (loc.hasAccuracy()) "<${loc.accuracy.toInt()}m" else "—",
+                        latitude = "%.6f".format(cached.latitude),
+                        longitude = "%.6f".format(cached.longitude),
+                        gpsAccuracy = if (cached.hasAccuracy()) "<${cached.accuracy.toInt()}m" else "—",
                         altitude = "—",
                         isGpsAvailable = true,
                         locationStatus = "ready"
@@ -209,8 +205,7 @@ class CameraViewModel @Inject constructor(
                 }
             }
         } catch (_: Exception) {
-            // Last resort: show N/A but allow capture
-            _uiState.update { it.copy(isGpsAvailable = false, locationStatus = "unavailable") }
+            // Network also failed — will be covered by GPS timeout
         }
     }
 
