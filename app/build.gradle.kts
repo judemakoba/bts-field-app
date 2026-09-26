@@ -13,8 +13,8 @@ android {
         applicationId = "com.telco.btsfieldapp"
         minSdk = 26
         targetSdk = 33
-        versionCode = 12
-        versionName = "1.0.11"
+        versionCode = 15
+        versionName = "1.0.15"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

@@ -95,6 +95,7 @@ data class DcdbInfoUiState(
 
     // ── Form state ───────────────────────────────────────────────
     val isSubmitting: Boolean = false,
+    val isSavingDraft: Boolean = false,
     val submitError: String? = null,
     val expandedSections: Set<Int> = setOf(0),
     val siteId: String = "",
@@ -104,6 +105,7 @@ data class DcdbInfoUiState(
 
 sealed class DcdbInfoEvent {
     data object SubmitSuccess : DcdbInfoEvent()
+    data object SaveDraftSuccess : DcdbInfoEvent()
 }
 
 @HiltViewModel
@@ -391,9 +393,10 @@ class DcdbInfoViewModel @Inject constructor(
 
             auditRepository.submitAudit(
                 siteId = siteId,
-                type = "dcdb_info",
+                type = "dcdb",
                 engineerName = engineerName,
-                data = payload
+                data = payload,
+                action = "submit"
             ).fold(
                 onSuccess = {
                     _uiState.update { it.copy(isSubmitting = false) }
@@ -401,6 +404,70 @@ class DcdbInfoViewModel @Inject constructor(
                 },
                 onFailure = { e ->
                     _uiState.update { it.copy(isSubmitting = false, submitError = e.message ?: "Submission failed") }
+                }
+            )
+        }
+    }
+
+    fun saveDraft() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingDraft = true, submitError = null) }
+            val s = _uiState.value
+            val engineerName = authRepository.userName.first().orEmpty().ifBlank { "Unknown" }
+            val payload = buildMap<String, Any> {
+                put("type", "dcdb_info")
+                put("grid_distance_to_3phase", s.gridDistanceTo3Phase)
+                put("np_cable_size_dcdb", s.npCableSizeDcdb)
+                put("np_breaker1_mcb", s.npBreaker1Mcb)
+                put("np_dcdus", s.npDcdus.joinToString(";") { "${it.label}:${it.cableSize}mm²:${it.breakerRating}A" })
+                s.npSectionPhotoPath?.let { put("np_section_photo", it) }
+                put("np_load_measurement", s.npLoadMeasurement)
+                s.npLoadPhotoPath?.let { put("np_load_photo", it) }
+                put("np_load_measured_time", s.npLoadMeasuredTime)
+                put("p_cable_size_dcdb", s.pCableSizeDcdb)
+                put("p_breaker1_mcb", s.pBreaker1Mcb)
+                put("p_dcdus", s.pDcdus.joinToString(";") { "${it.label}:${it.cableSize}mm²:${it.breakerRating}A" })
+                s.pSectionPhotoPath?.let { put("p_section_photo", it) }
+                put("p_load_measurement", s.pLoadMeasurement)
+                s.pLoadPhotoPath?.let { put("p_load_photo", it) }
+                put("p_load_measured_time", s.pLoadMeasuredTime)
+                put("np_dcdu_connections", s.npDcdusConnections.joinToString(";") { "${it.breakerLabel}|${it.photoPath ?: ""}" })
+                put("p_dcdu_connections", s.pDcdusConnections.joinToString(";") { "${it.breakerLabel}|${it.photoPath ?: ""}" })
+                put("total_dcdu_count", s.totalDcdUCount)
+                put("rru_count", s.rruCount)
+                put("rru_power_cable_count", s.rruPowerCableCount)
+                put("rru_power_cable_missing", s.rruPowerCableMissing)
+                put("rru_power_cable_length_per_run", s.rruPowerCableLengthPerRun)
+                put("rru_power_cable_total_missing", s.rruPowerCableTotalMissing)
+                put("rru_earthing_cable_count", s.rruEarthingCableCount)
+                put("rru_earthing_cable_missing", s.rruEarthingCableMissing)
+                put("rru_earthing_cable_length_per_run", s.rruEarthingCableLengthPerRun)
+                put("aau_count", s.aauCount)
+                put("aau_power_cable_count", s.aauPowerCableCount)
+                put("aau_power_cable_missing", s.aauPowerCableMissing)
+                put("aau_power_cable_length_per_run", s.aauPowerCableLengthPerRun)
+                put("aau_power_cable_total_missing", s.aauPowerCableTotalMissing)
+                put("aau_earthing_cable_count", s.aauEarthingCableCount)
+                put("aau_earthing_cable_missing", s.aauEarthingCableMissing)
+                put("aau_earthing_cable_length_per_run", s.aauEarthingCableLengthPerRun)
+                put("bts_earthing_cable_count", s.btsEarthingCableCount)
+                put("bts_earthing_cable_missing", s.btsEarthingCableMissing)
+                put("bts_earthing_length_per_run", s.btsEarthingLengthPerRun)
+                put("bts_earthing_total_missing", s.btsEarthingTotalMissing)
+            }
+            auditRepository.submitAudit(
+                siteId = siteId,
+                type = "dcdb",
+                engineerName = engineerName,
+                data = payload,
+                action = "save"
+            ).fold(
+                onSuccess = {
+                    _uiState.update { it.copy(isSavingDraft = false) }
+                    _events.emit(DcdbInfoEvent.SaveDraftSuccess)
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(isSavingDraft = false, submitError = e.message ?: "Save draft failed") }
                 }
             )
         }

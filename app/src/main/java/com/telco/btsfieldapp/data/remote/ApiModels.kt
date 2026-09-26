@@ -118,14 +118,51 @@ data class AuditSyncRequest(
     val site: Map<String, Any>?,
     val ground: List<Map<String, Any>>?,
     val dcdb: List<Map<String, Any>>?,
-    val tower: List<Map<String, Any>>?
+    val tower: List<Map<String, Any>>?,
+    val action: String? = null // "save" (draft) | "submit" (for review)
 )
 
 data class AuditSyncResponse(
     val success: Boolean?,
     val syncedAt: String?,
     val siteId: String?,
+    val status: String?, // "draft" | "submitted"
     val message: String?
+)
+
+// ── Rejected reports ──────────────────────────────────────────────────────
+data class RejectedReportsResponse(
+    val rejected: RejectedRecords?
+)
+
+data class RejectedRecords(
+    val ground: List<RejectedGroundRecord>?,
+    val dcdb: List<RejectedDcdbRecord>?,
+    val tower: List<RejectedTowerRecord>?
+)
+
+data class RejectedGroundRecord(
+    val id: String,
+    @SerializedName("siteId") val siteId: String,
+    val status: String,
+    val rejectionReason: String?,
+    val updatedAt: String?
+)
+
+data class RejectedDcdbRecord(
+    val id: String,
+    @SerializedName("siteId") val siteId: String,
+    val status: String,
+    val rejectionReason: String?,
+    val updatedAt: String?
+)
+
+data class RejectedTowerRecord(
+    val id: String,
+    @SerializedName("siteId") val siteId: String,
+    val status: String,
+    val rejectionReason: String?,
+    val updatedAt: String?
 )
 
 // ── Ground / DCDB / Tower individual endpoints ─────────────────────────────────

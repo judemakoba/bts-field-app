@@ -25,6 +25,7 @@ data class TowerInfoUiState(
     val antennas: List<AntennaEntry> = listOf(AntennaEntry(id = newId())),
     val rrus: List<RruEntry> = listOf(RruEntry(id = newId())),
     val isSubmitting: Boolean = false,
+    val isSavingDraft: Boolean = false,
     val submitError: String? = null,
     val expandedSections: Set<Int> = setOf(0, 1),
     val siteId: String = "",
@@ -34,6 +35,7 @@ data class TowerInfoUiState(
 
 sealed class TowerInfoEvent {
     data object SubmitSuccess : TowerInfoEvent()
+    data object SaveDraftSuccess : TowerInfoEvent()
 }
 
 private fun newId() = UUID.randomUUID().toString().take(8)
@@ -230,16 +232,17 @@ class TowerInfoViewModel @Inject constructor(
             }
 
             val payload = buildMap<String, Any> {
-                put("type", "tower_info")
+                put("type", "tower")
                 put("antennas", antennasJson)
                 put("rrus", rrusJson)
             }
 
             auditRepository.submitAudit(
                 siteId = siteId,
-                type = "tower_info",
+                type = "tower",
                 engineerName = engineerName,
-                data = payload
+                data = payload,
+                action = "submit"
             ).fold(
                 onSuccess = {
                     _uiState.update { it.copy(isSubmitting = false) }
@@ -247,6 +250,82 @@ class TowerInfoViewModel @Inject constructor(
                 },
                 onFailure = { e ->
                     _uiState.update { it.copy(isSubmitting = false, submitError = e.message ?: "Submission failed") }
+                }
+            )
+        }
+    }
+
+    fun saveDraft() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingDraft = true, submitError = null) }
+
+            val s = _uiState.value
+            val engineerName = authRepository.userName.first().orEmpty().ifBlank { "Unknown" }
+
+            val antennasJson = s.antennas.map { a ->
+                buildMap<String, Any> {
+                    put("id", a.id)
+                    put("equipment_type", a.equipmentType)
+                    put("manufacturer", a.manufacturer)
+                    put("model_number", a.modelNumber)
+                    put("tenant_owner", a.tenantOwner)
+                    put("sector", a.sector)
+                    put("azimuth", a.azimuth)
+                    put("height_to_centre", a.heightToCentre)
+                    put("length_dia_mm", a.lengthDia)
+                    put("width_mm", a.width)
+                    put("height_mm", a.height)
+                    put("active_inactive", a.activeInactive)
+                    put("equipment_labelling", a.equipmentLabelling)
+                    a.modelPlatePhoto?.let { put("photo_model_plate", it) }
+                    a.portsPhoto?.let { put("photo_ports", it) }
+                    a.dimensionsPhoto1?.let { put("photo_dim1", it) }
+                    a.dimensionsPhoto2?.let { put("photo_dim2", it) }
+                    a.dimensionsPhoto3?.let { put("photo_dim3", it) }
+                    a.azimuthPhoto?.let { put("photo_azimuth", it) }
+                    a.heightPhoto?.let { put("photo_height", it) }
+                }
+            }
+
+            val rrusJson = s.rrus.map { r ->
+                buildMap<String, Any> {
+                    put("id", r.id)
+                    put("equipment_type", r.equipmentType)
+                    put("manufacturer", r.manufacturer)
+                    put("model_number", r.modelNumber)
+                    put("tenant_owner", r.tenantOwner)
+                    put("sector", r.sector)
+                    put("length_dia_mm", r.lengthDia)
+                    put("width_mm", r.width)
+                    put("height_mm", r.height)
+                    put("active_inactive", r.activeInactive)
+                    put("equipment_labelling", r.equipmentLabelling)
+                    r.modelPlatePhoto?.let { put("photo_model_plate", it) }
+                    r.dimensionsPhoto1?.let { put("photo_dim1", it) }
+                    r.dimensionsPhoto2?.let { put("photo_dim2", it) }
+                    r.dimensionsPhoto3?.let { put("photo_dim3", it) }
+                }
+            }
+
+            val payload = buildMap<String, Any> {
+                put("type", "tower")
+                put("antennas", antennasJson)
+                put("rrus", rrusJson)
+            }
+
+            auditRepository.submitAudit(
+                siteId = siteId,
+                type = "tower",
+                engineerName = engineerName,
+                data = payload,
+                action = "save"
+            ).fold(
+                onSuccess = {
+                    _uiState.update { it.copy(isSavingDraft = false) }
+                    _events.emit(TowerInfoEvent.SaveDraftSuccess)
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(isSavingDraft = false, submitError = e.message ?: "Save draft failed") }
                 }
             )
         }

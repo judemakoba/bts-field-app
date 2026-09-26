@@ -68,6 +68,7 @@ fun GroundEquipmentScreen(
         viewModel.events.collectLatest { event ->
             when (event) {
                 is GroundEquipmentEvent.SubmitSuccess -> onSuccess()
+                is GroundEquipmentEvent.SaveDraftSuccess -> snackbarHostState.showSnackbar("Draft saved successfully")
             }
         }
     }
@@ -136,17 +137,26 @@ fun GroundEquipmentScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
-                        onClick = onBack,
+                        onClick = viewModel::saveDraft,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("Cancel") }
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !uiState.isSubmitting && !uiState.isSavingDraft
+                    ) {
+                        if (uiState.isSavingDraft) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Save Draft")
+                        }
+                    }
 
                     Button(
                         onClick = viewModel::submit,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                        enabled = !uiState.isSubmitting
+                        enabled = !uiState.isSubmitting && !uiState.isSavingDraft
                     ) {
                         if (uiState.isSubmitting) {
                             CircularProgressIndicator(
@@ -156,8 +166,8 @@ fun GroundEquipmentScreen(
                             )
                         } else {
                             Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Submit")
+                            Spacer(Modifier.width(4.dp))
+                            Text("Submit for Review")
                         }
                     }
                 }

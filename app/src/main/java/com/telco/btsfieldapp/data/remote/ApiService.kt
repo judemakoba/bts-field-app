@@ -23,6 +23,10 @@ interface ApiService {
     @POST("audit/sync")
     suspend fun syncAudit(@Body request: AuditSyncRequest): AuditSyncResponse
 
+    // ── Rejected reports ───────────────────────────────────────────────────
+    @GET("audit/rejected")
+    suspend fun getRejectedReports(): RejectedReportsResponse
+
     // ── Individual record endpoints ─────────────────────────────────────────
     @GET("ground")
     suspend fun getGroundRecords(@Query("siteId") siteId: String): RecordListResponse

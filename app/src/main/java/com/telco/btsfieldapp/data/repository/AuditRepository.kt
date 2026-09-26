@@ -6,6 +6,7 @@ import com.telco.btsfieldapp.data.local.entity.AuditEntity
 import com.telco.btsfieldapp.data.local.entity.PendingSyncEntity
 import com.telco.btsfieldapp.data.remote.ApiService
 import com.telco.btsfieldapp.data.remote.AuditSyncRequest
+import com.telco.btsfieldapp.data.remote.RejectedReportsResponse
 import com.telco.btsfieldapp.domain.model.AuditRecord
 import com.telco.btsfieldapp.domain.model.DcdbRecord
 import com.telco.btsfieldapp.domain.model.GroundRecord
@@ -45,12 +46,14 @@ class AuditRepository @Inject constructor(
     /**
      * Submit audit records to the server via the sync endpoint.
      * Stores in local DB first, then syncs. If offline, queues for later sync.
+     * action: null (legacy), "save" (draft), "submit" (for review)
      */
     suspend fun submitAudit(
         siteId: String,
         type: String,
         engineerName: String,
-        data: Map<String, Any>
+        data: Map<String, Any>,
+        action: String? = null
     ): Result<Unit> {
         val pendingEntry = PendingSyncEntity(
             entityType = type,
@@ -63,9 +66,10 @@ class AuditRepository @Inject constructor(
             val request = AuditSyncRequest(
                 siteId = siteId,
                 site = null,
-                ground = if (type == "ground" || type == "ground_equipment") listOf(data) else null,
-                dcdb = if (type == "dcdb") listOf(data) else null,
-                tower = if (type == "tower") listOf(data) else null
+                ground = if (type == "ground") listOf(data) else null,
+                dcdb = if (type == "dcdb" || type == "dcdb_info") listOf(data) else null,
+                tower = if (type == "tower" || type == "tower_info") listOf(data) else null,
+                action = action
             )
             val response = api.syncAudit(request)
             if (response.success == true) {
@@ -77,6 +81,18 @@ class AuditRepository @Inject constructor(
             }
         } catch (e: Exception) {
             pendingSyncDao.insert(pendingEntry)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get rejected reports for the current engineer.
+     */
+    suspend fun getRejectedReports(): Result<RejectedReportsResponse> {
+        return try {
+            val response = api.getRejectedReports()
+            Result.success(response)
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }

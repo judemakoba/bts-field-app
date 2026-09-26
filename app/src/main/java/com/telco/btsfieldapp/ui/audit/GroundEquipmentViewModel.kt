@@ -85,6 +85,7 @@ data class GroundEquipmentUiState(
 
     // Form state
     val isSubmitting: Boolean = false,
+    val isSavingDraft: Boolean = false,
     val submitError: String? = null,
     val expandedSections: Set<Int> = setOf(0), // section 0 open by default
     val siteId: String = "",
@@ -94,6 +95,7 @@ data class GroundEquipmentUiState(
 
 sealed class GroundEquipmentEvent {
     data object SubmitSuccess : GroundEquipmentEvent()
+    data object SaveDraftSuccess : GroundEquipmentEvent()
 }
 
 @HiltViewModel
@@ -345,9 +347,10 @@ class GroundEquipmentViewModel @Inject constructor(
 
             auditRepository.submitAudit(
                 siteId = siteId,
-                type = "ground_equipment",
+                type = "ground",
                 engineerName = engineerName,
-                data = payload
+                data = payload,
+                action = "submit"
             ).fold(
                 onSuccess = {
                     _uiState.update { it.copy(isSubmitting = false) }
@@ -355,6 +358,79 @@ class GroundEquipmentViewModel @Inject constructor(
                 },
                 onFailure = { e ->
                     _uiState.update { it.copy(isSubmitting = false, submitError = e.message ?: "Submission failed") }
+                }
+            )
+        }
+    }
+
+    fun saveDraft() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingDraft = true, submitError = null) }
+            val s = _uiState.value
+            val engineerName = s.technicianName.ifBlank { "Unknown" }
+
+            val payload = buildMap<String, Any> {
+                put("type", "ground_equipment")
+                put("atc_id", s.atcId)
+                s.siteNamePlatePhotoPath?.let { put("site_name_plate_photo", it) }
+                put("survey_date", s.surveyDate)
+                put("technician_name", s.technicianName)
+                put("technician_contacts", s.technicianContacts)
+                put("contractor_name", s.contractorName)
+                put("latitude", s.latitude)
+                put("longitude", s.longitude)
+                put("gps_accuracy", s.gpsAccuracy)
+                put("altitude", s.altitude)
+                s.gpsScreenshotPath?.let { put("gps_screenshot", it) }
+                put("tower_type", s.towerType)
+                put("tower_height", s.towerHeight)
+                put("building_height", s.buildingHeight)
+                put("total_height", s.totalHeight)
+                put("site_indoor_outdoor", s.siteIndoorOutdoor)
+                put("no_of_tenants", s.noOfTenants)
+                put("other_tenants", s.otherTenants.joinToString(", "))
+                s.sitePhotoPath?.let { put("site_photo", it) }
+                put("has_grid", s.hasGrid)
+                put("has_dg", s.hasDG)
+                put("has_solar", s.hasSolar)
+                put("grid_distance_to_3phase", s.gridDistanceTo3Phase)
+                put("guard_at_site", s.guardAtSite)
+                put("rru_type", s.rruType)
+                put("rru_count", s.rruCount)
+                put("rru_photos", s.rruPhotoPaths.joinToString("|"))
+                put("cabinet_types", s.cabinetTypes)
+                put("cabinet_count", s.cabinetCount)
+                put("cabinet_photos", s.cabinetPhotoPaths.joinToString("|"))
+                put("equipment_labelled", s.equipmentLabelled)
+                put("cabinet_comments", s.cabinetComments)
+                put("cabinet_dimensions_lxwxh", s.cabinetDimensionsLxW)
+                put("cabinet_dimension_photos", s.cabinetDimensionPhotoPaths.joinToString("|"))
+                put("active_idu_types", s.activeIduTypes)
+                put("non_active_idu_types", s.nonActiveIduTypes)
+                put("non_active_idu_count", s.nonActiveIduCount)
+                put("non_active_idu_photos", s.nonActiveIduPhotoPaths.joinToString("|"))
+                put("slab_dimensions", s.slabDimensions)
+                put("slab_photos", s.slabPhotoPaths.joinToString("|"))
+                put("redundant_equipment_count", s.redundantEquipmentCount)
+                put("redundant_item_name", s.redundantItemName)
+                put("redundant_photos", s.redundantPhotoPaths.joinToString("|"))
+                put("trm_media_fiber", s.isOnFiber?.toString() ?: "")
+                put("overall_remarks", s.overallRemarks)
+            }
+
+            auditRepository.submitAudit(
+                siteId = siteId,
+                type = "ground",
+                engineerName = engineerName,
+                data = payload,
+                action = "save"
+            ).fold(
+                onSuccess = {
+                    _uiState.update { it.copy(isSavingDraft = false) }
+                    _events.emit(GroundEquipmentEvent.SaveDraftSuccess)
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(isSavingDraft = false, submitError = e.message ?: "Save draft failed") }
                 }
             )
         }
