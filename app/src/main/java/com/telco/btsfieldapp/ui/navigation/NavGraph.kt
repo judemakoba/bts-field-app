@@ -13,6 +13,7 @@ import com.telco.btsfieldapp.ui.audit.TowerInfoScreen
 import com.telco.btsfieldapp.ui.auth.LoginScreen
 import com.telco.btsfieldapp.ui.camera.CameraScreen
 import com.telco.btsfieldapp.ui.detail.SiteDetailScreen
+import com.telco.btsfieldapp.ui.gps.GpsCaptureScreen
 import com.telco.btsfieldapp.ui.sites.SitesScreen
 
 sealed class Screen(val route: String) {
@@ -33,6 +34,9 @@ sealed class Screen(val route: String) {
     }
     data object TowerInfo : Screen("tower_info/{siteId}") {
         fun createRoute(siteId: String) = "tower_info/$siteId"
+    }
+    data object GpsCapture : Screen("gps_capture/{siteId}") {
+        fun createRoute(siteId: String) = "gps_capture/$siteId"
     }
 }
 
@@ -109,7 +113,13 @@ fun NavGraph(
                 onSuccess = { navController.popBackStack() },
                 onCapturePhoto = { siteId, siteName, locationSummary, auditType ->
                     navController.navigate(Screen.Camera.createRoute(siteId, auditType, siteName, locationSummary))
-                }
+                },
+                onOpenGpsCapture = {
+                    val siteId = navController.currentBackStackEntry
+                        ?.arguments?.getString("siteId") ?: return@GroundEquipmentScreen
+                    navController.navigate(Screen.GpsCapture.createRoute(siteId))
+                },
+                navController = navController
             )
         }
 
@@ -135,6 +145,33 @@ fun NavGraph(
                 onSuccess = { navController.popBackStack() },
                 onCapturePhoto = { siteId, siteName, locationSummary, auditType ->
                     navController.navigate(Screen.Camera.createRoute(siteId, auditType, siteName, locationSummary))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.GpsCapture.route,
+            arguments = listOf(navArgument("siteId") { type = NavType.StringType })
+        ) {
+            GpsCaptureScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateBackWithResult = { lat, lng, alt, acc, path ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("gps_latitude", lat)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("gps_longitude", lng)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("gps_altitude", alt)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("gps_accuracy", acc)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("gps_screenshot", path)
+                    navController.popBackStack()
                 }
             )
         }

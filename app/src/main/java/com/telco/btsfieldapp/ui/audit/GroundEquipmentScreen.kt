@@ -28,7 +28,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.telco.btsfieldapp.ui.theme.*
@@ -57,11 +59,39 @@ fun GroundEquipmentScreen(
     onBack: () -> Unit,
     onSuccess: () -> Unit,
     onCapturePhoto: (String, String, String, String) -> Unit,
+    onOpenGpsCapture: () -> Unit,
+    navController: NavController,
     viewModel: GroundEquipmentViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val navBackStackEntry = navController.currentBackStackEntry
+    val savedStateHandle = navBackStackEntry?.savedStateHandle
+
+    // Handle GPS capture result returned from GpsCaptureScreen
+    LaunchedEffect(savedStateHandle) {
+        savedStateHandle?.let { handle ->
+            val lat = handle.get<String>("gps_latitude")
+            val lng = handle.get<String>("gps_longitude")
+            val alt = handle.get<String>("gps_altitude")
+            val acc = handle.get<String>("gps_accuracy")
+            val path = handle.get<String>("gps_screenshot")
+            if (lat != null && lat.isNotBlank()) {
+                viewModel.onLatitudeChange(lat)
+                viewModel.onLongitudeChange(lng ?: "")
+                viewModel.onAltitudeChange(alt ?: "")
+                viewModel.onGpsAccuracyChange(acc ?: "")
+                viewModel.onGpsScreenshot(path ?: "")
+                handle.remove<String>("gps_latitude")
+                handle.remove<String>("gps_longitude")
+                handle.remove<String>("gps_altitude")
+                handle.remove<String>("gps_accuracy")
+                handle.remove<String>("gps_screenshot")
+                snackbarHostState.showSnackbar("GPS coordinates captured ✓")
+            }
+        }
+    }
 
     // Handle success
     LaunchedEffect(Unit) {
@@ -267,57 +297,15 @@ fun GroundEquipmentScreen(
                     isExpanded = uiState.expandedSections.contains(2),
                     onToggle = { viewModel.toggleSection(2) }
                 ) {
-                    // GPS Coordinates
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FormTextField(
-                            value = uiState.latitude,
-                            onValueChange = viewModel::onLatitudeChange,
-                            label = "Latitude",
-                            hint = "e.g. 0.314626",
-                            keyboardType = KeyboardType.Decimal,
-                            modifier = Modifier.weight(1f)
-                        )
-                        FormTextField(
-                            value = uiState.longitude,
-                            onValueChange = viewModel::onLongitudeChange,
-                            label = "Longitude",
-                            hint = "e.g. 32.622251",
-                            keyboardType = KeyboardType.Decimal,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FormTextField(
-                            value = uiState.gpsAccuracy,
-                            onValueChange = viewModel::onGpsAccuracyChange,
-                            label = "GPS Accuracy (m)",
-                            hint = "<4m",
-                            keyboardType = KeyboardType.Decimal,
-                            modifier = Modifier.weight(1f)
-                        )
-                        FormTextField(
-                            value = uiState.altitude,
-                            onValueChange = viewModel::onAltitudeChange,
-                            label = "Altitude (m)",
-                            hint = "Altitude",
-                            keyboardType = KeyboardType.Decimal,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    PhotoCaptureRow(
-                        label = "GPS Screenshot (Accuracy < 4m)",
-                        photos = uiState.gpsScreenshotPath?.let { listOf(it) } ?: emptyList(),
-                        onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "gps_screenshot") },
-                        onRemovePhoto = { viewModel.onGpsScreenshot("") },
-                        maxPhotos = 1
+                    // GPS Coordinates — dedicated capture screen
+                    GpsCaptureCard(
+                        latitude = uiState.latitude,
+                        longitude = uiState.longitude,
+                        accuracy = uiState.gpsAccuracy,
+                        altitude = uiState.altitude,
+                        screenshotPath = uiState.gpsScreenshotPath,
+                        onOpenCapture = onOpenGpsCapture,
+                        onRemove = { viewModel.onGpsScreenshot("") }
                     )
                     Spacer(Modifier.height(12.dp))
                     FormDropdown(
@@ -1049,6 +1037,135 @@ private fun PhotoThumbnail(
                 tint = Color.White,
                 modifier = Modifier.size(14.dp)
             )
+        }
+    }
+}
+
+@Composable
+private fun GpsCaptureCard(
+    latitude: String,
+    longitude: String,
+    accuracy: String,
+    altitude: String,
+    screenshotPath: String?,
+    onOpenCapture: () -> Unit,
+    onRemove: () -> Unit
+) {
+    val hasCoords = latitude.isNotBlank() && latitude != "Fetching..."
+    val isAccurate = accuracy.removePrefix("<").removeSuffix("m").toIntOrNull()?.let { it <= 4 } == true
+
+    if (screenshotPath != null && hasCoords) {
+        // Show captured GPS summary card with screenshot
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+            border = BorderStroke(1.5.dp, if (isAccurate) Color(0xFF22C55E) else Color(0xFFFBBF24))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "GPS CAPTURED",
+                            fontSize = 10.sp,
+                            color = Color.Gray,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Column {
+                                Text("LAT", fontSize = 10.sp, color = Color.Gray)
+                                Text(latitude, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Column {
+                                Text("LNG", fontSize = 10.sp, color = Color.Gray)
+                                Text(longitude, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Column {
+                                Text("ACC", fontSize = 10.sp, color = Color.Gray)
+                                Text(accuracy, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                                    color = if (isAccurate) Color(0xFF22C55E) else Color(0xFFB45309))
+                            }
+                            Column {
+                                Text("ALT", fontSize = 10.sp, color = Color.Gray)
+                                Text(altitude.ifBlank { "—" }, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    IconButton(onClick = onRemove) {
+                        Icon(Icons.Default.Close, "Remove", tint = Color.Red)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                // Screenshot thumbnail
+                val file = java.io.File(screenshotPath)
+                if (file.exists()) {
+                    coil.compose.AsyncImage(
+                        model = file,
+                        contentDescription = "GPS Screenshot",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onOpenCapture,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryGreen)
+                ) {
+                    Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Re-capture GPS", fontSize = 13.sp)
+                }
+            }
+        }
+    } else {
+        // Show capture button
+        OutlinedCard(
+            onClick = onOpenCapture,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFEFF6FF))
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    Icons.Default.MyLocation,
+                    contentDescription = null,
+                    tint = Color(0xFF3B82F6),
+                    modifier = Modifier.size(40.dp)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Open GPS Capture Screen",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = Color(0xFF1E40AF)
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Tap to open the map, wait for best accuracy, then capture",
+                    fontSize = 12.sp,
+                    color = Color(0xFF6B7280),
+                    textAlign = TextAlign.Center
+                )
+                if (hasCoords) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Lat: $latitude", fontSize = 11.sp, color = Color.Gray)
+                        Text("Lng: $longitude", fontSize = 11.sp, color = Color.Gray)
+                        Text("Acc: $accuracy", fontSize = 11.sp, color = Color.Gray)
+                    }
+                }
+            }
         }
     }
 }
