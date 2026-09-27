@@ -7,14 +7,14 @@ plugins {
 
 android {
     namespace = "com.telco.btsfieldapp"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.telco.btsfieldapp"
-        minSdk = 26
-        targetSdk = 33
-        versionCode = 15
-        versionName = "1.0.15"
+        minSdk = 28
+        targetSdk = 35
+        versionCode = 16
+        versionName = "1.0.16"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -23,7 +23,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

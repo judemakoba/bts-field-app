@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.telco.btsfieldapp.data.repository.AuditRepository
 import com.telco.btsfieldapp.data.repository.AuthRepository
+import com.telco.btsfieldapp.data.repository.PhotoToUpload
 import com.telco.btsfieldapp.data.repository.SiteRepository
+import com.telco.btsfieldapp.data.repository.UploadProgress
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +21,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 import javax.inject.Inject
 
 data class GroundEquipmentUiState(
@@ -90,8 +93,19 @@ data class GroundEquipmentUiState(
     val expandedSections: Set<Int> = setOf(0), // section 0 open by default
     val siteId: String = "",
     val siteName: String = "",
-    val locationSummary: String = "Kampala"
+    val locationSummary: String = "Kampala",
+
+    // Photo upload state
+    val isUploadingPhotos: Boolean = false,
+    val uploadTotal: Int = 0,
+    val uploadCurrent: Int = 0,
+    val uploadCurrentName: String = "",
+    val uploadPhotoStatuses: Map<String, PhotoUploadStatus> = emptyMap()  // fieldName → status
 )
+
+enum class PhotoUploadStatus {
+    PENDING, UPLOADING, DONE, FAILED
+}
 
 sealed class GroundEquipmentEvent {
     data object SubmitSuccess : GroundEquipmentEvent()
@@ -272,6 +286,56 @@ class GroundEquipmentViewModel @Inject constructor(
         }
     }
 
+    // ── Helpers to build photo upload lists ────────────────────────────────────
+    private fun buildGroundPhotoList(s: GroundEquipmentUiState, recordId: String): List<PhotoToUpload> =
+        buildList {
+            s.siteNamePlatePhotoPath?.let { add(PhotoToUpload(it, "ground", "site_name_plate_photo", recordId)) }
+            s.gpsScreenshotPath?.let { add(PhotoToUpload(it, "ground", "gps_screenshot", recordId)) }
+            s.sitePhotoPath?.let { add(PhotoToUpload(it, "ground", "site_photo", recordId)) }
+            s.rruPhotoPaths.forEachIndexed { idx, p -> add(PhotoToUpload(p, "ground", "rru_photo_$idx", recordId)) }
+            s.cabinetPhotoPaths.forEachIndexed { idx, p -> add(PhotoToUpload(p, "ground", "cabinet_photo_$idx", recordId)) }
+            s.cabinetDimensionPhotoPaths.forEachIndexed { idx, p -> add(PhotoToUpload(p, "ground", "cabinet_dim_photo_$idx", recordId)) }
+            s.nonActiveIduPhotoPaths.forEachIndexed { idx, p -> add(PhotoToUpload(p, "ground", "non_active_idu_photo_$idx", recordId)) }
+            s.slabPhotoPaths.forEachIndexed { idx, p -> add(PhotoToUpload(p, "ground", "slab_photo_$idx", recordId)) }
+            s.redundantPhotoPaths.forEachIndexed { idx, p -> add(PhotoToUpload(p, "ground", "redundant_photo_$idx", recordId)) }
+        }
+
+    /** Collect photo upload flow, update UI state, return map of fieldName → serverUrl */
+    private suspend fun collectPhotoUploads(
+        photosToUpload: List<PhotoToUpload>,
+        onStarted: () -> Unit,
+        onPhotoStarted: (Int, String) -> Unit,
+        onPhotoDone: (String) -> Unit,
+        onPhotoFailed: (String) -> Unit,
+        onDone: () -> Unit
+    ): Map<String, String> {
+        if (photosToUpload.isEmpty()) return emptyMap()
+
+        onStarted()
+        var photoUrls = emptyMap<String, String>()
+
+        auditRepository.uploadPhotos(siteId, photosToUpload).collect { progress ->
+            when (progress) {
+                is UploadProgress.Started -> { /* overall count already set in onStarted */ }
+                is UploadProgress.PhotoStarted -> {
+                    onPhotoStarted(progress.index, progress.fieldName)
+                }
+                is UploadProgress.PhotoDone -> {
+                    photoUrls = photoUrls + (progress.fieldName to progress.serverUrl)
+                    onPhotoDone(progress.fieldName)
+                }
+                is UploadProgress.PhotoFailed -> {
+                    onPhotoFailed(progress.fieldName)
+                }
+                is UploadProgress.Done -> {
+                    photoUrls = progress.photoUrls
+                    onDone()
+                }
+            }
+        }
+        return photoUrls
+    }
+
     // ── Submit ────────────────────────────────────────────────────────────────
     fun submit() {
         viewModelScope.launch {
@@ -279,72 +343,51 @@ class GroundEquipmentViewModel @Inject constructor(
 
             val s = _uiState.value
             val engineerName = s.technicianName.ifBlank { "Unknown" }
+            val recordId = UUID.randomUUID().toString()
 
-            val payload = buildMap<String, Any> {
-                put("type", "ground_equipment")
+            val photosToUpload = buildGroundPhotoList(s, recordId)
 
-                // Section 1
-                put("atc_id", s.atcId)
-                s.siteNamePlatePhotoPath?.let { put("site_name_plate_photo", it) }
+            // Upload photos
+            var photoUrls = emptyMap<String, String>()
+            if (photosToUpload.isNotEmpty()) {
+                photoUrls = collectPhotoUploads(
+                    photosToUpload = photosToUpload,
+                    onStarted = {
+                        _uiState.update { it.copy(
+                            isUploadingPhotos = true,
+                            uploadTotal = photosToUpload.size,
+                            uploadCurrent = 0,
+                            uploadCurrentName = "",
+                            uploadPhotoStatuses = photosToUpload.associate { it.fieldName to PhotoUploadStatus.PENDING }
+                        )}
+                    },
+                    onPhotoStarted = { idx, fieldName ->
+                        _uiState.update { it.copy(
+                            uploadCurrent = idx + 1,
+                            uploadCurrentName = fieldName,
+                            uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.UPLOADING)
+                        )}
+                    },
+                    onPhotoDone = { fieldName ->
+                        _uiState.update { it.copy(uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.DONE)) }
+                    },
+                    onPhotoFailed = { fieldName ->
+                        _uiState.update { it.copy(uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.FAILED)) }
+                    },
+                    onDone = {
+                        _uiState.update { it.copy(isUploadingPhotos = false) }
+                    }
+                )
 
-                // Section 2
-                put("survey_date", s.surveyDate)
-                put("technician_name", s.technicianName)
-                put("technician_contacts", s.technicianContacts)
-                put("contractor_name", s.contractorName)
-
-                // Section 3
-                put("latitude", s.latitude)
-                put("longitude", s.longitude)
-                put("gps_accuracy", s.gpsAccuracy)
-                put("altitude", s.altitude)
-                s.gpsScreenshotPath?.let { put("gps_screenshot", it) }
-                put("tower_type", s.towerType)
-                put("tower_height", s.towerHeight)
-                put("building_height", s.buildingHeight)
-                put("total_height", s.totalHeight)
-                put("site_indoor_outdoor", s.siteIndoorOutdoor)
-                put("no_of_tenants", s.noOfTenants)
-                put("other_tenants", s.otherTenants.joinToString(", "))
-                s.sitePhotoPath?.let { put("site_photo", it) }
-
-                // Section 4
-                put("has_grid", s.hasGrid)
-                put("has_dg", s.hasDG)
-                put("has_solar", s.hasSolar)
-                put("grid_distance_to_3phase", s.gridDistanceTo3Phase)
-
-                // Section 5
-                put("guard_at_site", s.guardAtSite)
-                put("rru_type", s.rruType)
-                put("rru_count", s.rruCount)
-                put("rru_photos", s.rruPhotoPaths.joinToString("|"))
-                put("cabinet_types", s.cabinetTypes)
-                put("cabinet_count", s.cabinetCount)
-                put("cabinet_photos", s.cabinetPhotoPaths.joinToString("|"))
-                put("equipment_labelled", s.equipmentLabelled)
-                put("cabinet_comments", s.cabinetComments)
-                put("cabinet_dimensions_lxwxh", s.cabinetDimensionsLxW)
-                put("cabinet_dimension_photos", s.cabinetDimensionPhotoPaths.joinToString("|"))
-                put("active_idu_types", s.activeIduTypes)
-                put("non_active_idu_types", s.nonActiveIduTypes)
-                put("non_active_idu_count", s.nonActiveIduCount)
-                put("non_active_idu_photos", s.nonActiveIduPhotoPaths.joinToString("|"))
-
-                // Section 6
-                put("slab_dimensions", s.slabDimensions)
-                put("slab_photos", s.slabPhotoPaths.joinToString("|"))
-
-                // Section 7
-                put("redundant_equipment_count", s.redundantEquipmentCount)
-                put("redundant_item_name", s.redundantItemName)
-                put("redundant_photos", s.redundantPhotoPaths.joinToString("|"))
-
-                // Section 8
-                put("trm_media_fiber", s.isOnFiber?.toString() ?: "")
-                put("overall_remarks", s.overallRemarks)
+                val allFailed = _uiState.value.uploadPhotoStatuses.values.all { it == PhotoUploadStatus.FAILED }
+                if (allFailed && photoUrls.isEmpty()) {
+                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false, submitError = "All photo uploads failed. Check your connection.") }
+                    return@launch
+                }
             }
 
+            // Submit with server photo URLs
+            val payload = buildPayload(s, recordId, photoUrls)
             auditRepository.submitAudit(
                 siteId = siteId,
                 type = "ground",
@@ -353,71 +396,68 @@ class GroundEquipmentViewModel @Inject constructor(
                 action = "submit"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSubmitting = false) }
+                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false) }
                     _events.emit(GroundEquipmentEvent.SubmitSuccess)
                 },
                 onFailure = { e ->
-                    _uiState.update { it.copy(isSubmitting = false, submitError = e.message ?: "Submission failed") }
+                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false, submitError = e.message ?: "Submission failed") }
                 }
             )
         }
     }
 
+    // ── Save Draft ─────────────────────────────────────────────────────────────
     fun saveDraft() {
         viewModelScope.launch {
             _uiState.update { it.copy(isSavingDraft = true, submitError = null) }
+
             val s = _uiState.value
             val engineerName = s.technicianName.ifBlank { "Unknown" }
+            val recordId = UUID.randomUUID().toString()
 
-            val payload = buildMap<String, Any> {
-                put("type", "ground_equipment")
-                put("atc_id", s.atcId)
-                s.siteNamePlatePhotoPath?.let { put("site_name_plate_photo", it) }
-                put("survey_date", s.surveyDate)
-                put("technician_name", s.technicianName)
-                put("technician_contacts", s.technicianContacts)
-                put("contractor_name", s.contractorName)
-                put("latitude", s.latitude)
-                put("longitude", s.longitude)
-                put("gps_accuracy", s.gpsAccuracy)
-                put("altitude", s.altitude)
-                s.gpsScreenshotPath?.let { put("gps_screenshot", it) }
-                put("tower_type", s.towerType)
-                put("tower_height", s.towerHeight)
-                put("building_height", s.buildingHeight)
-                put("total_height", s.totalHeight)
-                put("site_indoor_outdoor", s.siteIndoorOutdoor)
-                put("no_of_tenants", s.noOfTenants)
-                put("other_tenants", s.otherTenants.joinToString(", "))
-                s.sitePhotoPath?.let { put("site_photo", it) }
-                put("has_grid", s.hasGrid)
-                put("has_dg", s.hasDG)
-                put("has_solar", s.hasSolar)
-                put("grid_distance_to_3phase", s.gridDistanceTo3Phase)
-                put("guard_at_site", s.guardAtSite)
-                put("rru_type", s.rruType)
-                put("rru_count", s.rruCount)
-                put("rru_photos", s.rruPhotoPaths.joinToString("|"))
-                put("cabinet_types", s.cabinetTypes)
-                put("cabinet_count", s.cabinetCount)
-                put("cabinet_photos", s.cabinetPhotoPaths.joinToString("|"))
-                put("equipment_labelled", s.equipmentLabelled)
-                put("cabinet_comments", s.cabinetComments)
-                put("cabinet_dimensions_lxwxh", s.cabinetDimensionsLxW)
-                put("cabinet_dimension_photos", s.cabinetDimensionPhotoPaths.joinToString("|"))
-                put("active_idu_types", s.activeIduTypes)
-                put("non_active_idu_types", s.nonActiveIduTypes)
-                put("non_active_idu_count", s.nonActiveIduCount)
-                put("non_active_idu_photos", s.nonActiveIduPhotoPaths.joinToString("|"))
-                put("slab_dimensions", s.slabDimensions)
-                put("slab_photos", s.slabPhotoPaths.joinToString("|"))
-                put("redundant_equipment_count", s.redundantEquipmentCount)
-                put("redundant_item_name", s.redundantItemName)
-                put("redundant_photos", s.redundantPhotoPaths.joinToString("|"))
-                put("trm_media_fiber", s.isOnFiber?.toString() ?: "")
-                put("overall_remarks", s.overallRemarks)
+            val photosToUpload = buildGroundPhotoList(s, recordId)
+
+            // Upload photos
+            var photoUrls = emptyMap<String, String>()
+            if (photosToUpload.isNotEmpty()) {
+                photoUrls = collectPhotoUploads(
+                    photosToUpload = photosToUpload,
+                    onStarted = {
+                        _uiState.update { it.copy(
+                            isUploadingPhotos = true,
+                            uploadTotal = photosToUpload.size,
+                            uploadCurrent = 0,
+                            uploadCurrentName = "",
+                            uploadPhotoStatuses = photosToUpload.associate { it.fieldName to PhotoUploadStatus.PENDING }
+                        )}
+                    },
+                    onPhotoStarted = { idx, fieldName ->
+                        _uiState.update { it.copy(
+                            uploadCurrent = idx + 1,
+                            uploadCurrentName = fieldName,
+                            uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.UPLOADING)
+                        )}
+                    },
+                    onPhotoDone = { fieldName ->
+                        _uiState.update { it.copy(uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.DONE)) }
+                    },
+                    onPhotoFailed = { fieldName ->
+                        _uiState.update { it.copy(uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.FAILED)) }
+                    },
+                    onDone = {
+                        _uiState.update { it.copy(isUploadingPhotos = false) }
+                    }
+                )
+
+                val allFailed = _uiState.value.uploadPhotoStatuses.values.all { it == PhotoUploadStatus.FAILED }
+                if (allFailed && photoUrls.isEmpty()) {
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false, submitError = "All photo uploads failed. Check your connection.") }
+                    return@launch
+                }
             }
 
+            // Save with server photo URLs
+            val payload = buildPayload(s, recordId, photoUrls)
             auditRepository.submitAudit(
                 siteId = siteId,
                 type = "ground",
@@ -426,13 +466,63 @@ class GroundEquipmentViewModel @Inject constructor(
                 action = "save"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSavingDraft = false) }
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false) }
                     _events.emit(GroundEquipmentEvent.SaveDraftSuccess)
                 },
                 onFailure = { e ->
-                    _uiState.update { it.copy(isSavingDraft = false, submitError = e.message ?: "Save draft failed") }
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false, submitError = e.message ?: "Save draft failed") }
                 }
             )
         }
+    }
+
+    private fun buildPayload(s: GroundEquipmentUiState, recordId: String, photoUrls: Map<String, String>): Map<String, Any> = buildMap {
+        put("type", "ground")
+        put("id", recordId)
+        put("atc_id", s.atcId)
+        s.siteNamePlatePhotoPath?.let { put("site_name_plate_photo", photoUrls["site_name_plate_photo"] ?: it) }
+        put("survey_date", s.surveyDate)
+        put("technician_name", s.technicianName)
+        put("technician_contacts", s.technicianContacts)
+        put("contractor_name", s.contractorName)
+        put("latitude", s.latitude)
+        put("longitude", s.longitude)
+        put("gps_accuracy", s.gpsAccuracy)
+        put("altitude", s.altitude)
+        s.gpsScreenshotPath?.let { put("gps_screenshot", photoUrls["gps_screenshot"] ?: it) }
+        put("tower_type", s.towerType)
+        put("tower_height", s.towerHeight)
+        put("building_height", s.buildingHeight)
+        put("total_height", s.totalHeight)
+        put("site_indoor_outdoor", s.siteIndoorOutdoor)
+        put("no_of_tenants", s.noOfTenants)
+        put("other_tenants", s.otherTenants.joinToString(", "))
+        s.sitePhotoPath?.let { put("site_photo", photoUrls["site_photo"] ?: it) }
+        put("has_grid", s.hasGrid)
+        put("has_dg", s.hasDG)
+        put("has_solar", s.hasSolar)
+        put("grid_distance_to_3phase", s.gridDistanceTo3Phase)
+        put("guard_at_site", s.guardAtSite)
+        put("rru_type", s.rruType)
+        put("rru_count", s.rruCount)
+        put("rru_photos", s.rruPhotoPaths.mapIndexed { idx, p -> photoUrls["rru_photo_$idx"] ?: p }.joinToString("|"))
+        put("cabinet_types", s.cabinetTypes)
+        put("cabinet_count", s.cabinetCount)
+        put("cabinet_photos", s.cabinetPhotoPaths.mapIndexed { idx, p -> photoUrls["cabinet_photo_$idx"] ?: p }.joinToString("|"))
+        put("equipment_labelled", s.equipmentLabelled)
+        put("cabinet_comments", s.cabinetComments)
+        put("cabinet_dimensions_lxwxh", s.cabinetDimensionsLxW)
+        put("cabinet_dimension_photos", s.cabinetDimensionPhotoPaths.mapIndexed { idx, p -> photoUrls["cabinet_dim_photo_$idx"] ?: p }.joinToString("|"))
+        put("active_idu_types", s.activeIduTypes)
+        put("non_active_idu_types", s.nonActiveIduTypes)
+        put("non_active_idu_count", s.nonActiveIduCount)
+        put("non_active_idu_photos", s.nonActiveIduPhotoPaths.mapIndexed { idx, p -> photoUrls["non_active_idu_photo_$idx"] ?: p }.joinToString("|"))
+        put("slab_dimensions", s.slabDimensions)
+        put("slab_photos", s.slabPhotoPaths.mapIndexed { idx, p -> photoUrls["slab_photo_$idx"] ?: p }.joinToString("|"))
+        put("redundant_equipment_count", s.redundantEquipmentCount)
+        put("redundant_item_name", s.redundantItemName)
+        put("redundant_photos", s.redundantPhotoPaths.mapIndexed { idx, p -> photoUrls["redundant_photo_$idx"] ?: p }.joinToString("|"))
+        put("trm_media_fiber", s.isOnFiber?.toString() ?: "")
+        put("overall_remarks", s.overallRemarks)
     }
 }

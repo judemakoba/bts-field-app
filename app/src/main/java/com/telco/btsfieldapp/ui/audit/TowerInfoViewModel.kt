@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.telco.btsfieldapp.data.repository.AuditRepository
 import com.telco.btsfieldapp.data.repository.AuthRepository
+import com.telco.btsfieldapp.data.repository.PhotoToUpload
 import com.telco.btsfieldapp.data.repository.SiteRepository
+import com.telco.btsfieldapp.data.repository.UploadProgress
 import com.telco.btsfieldapp.domain.model.AntennaEntry
 import com.telco.btsfieldapp.domain.model.RruEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,7 +32,14 @@ data class TowerInfoUiState(
     val expandedSections: Set<Int> = setOf(0, 1),
     val siteId: String = "",
     val siteName: String = "",
-    val locationSummary: String = "Kampala"
+    val locationSummary: String = "Kampala",
+
+    // Photo upload state
+    val isUploadingPhotos: Boolean = false,
+    val uploadTotal: Int = 0,
+    val uploadCurrent: Int = 0,
+    val uploadCurrentName: String = "",
+    val uploadPhotoStatuses: Map<String, PhotoUploadStatus> = emptyMap()
 )
 
 sealed class TowerInfoEvent {
@@ -74,7 +83,7 @@ class TowerInfoViewModel @Inject constructor(
         }
     }
 
-    // ── Antenna helpers ────────────────────────────────────────────────────
+    // ── Antenna helpers ───────────────────────────────────────────────────
     private fun findAntennaIndex(id: String) =
         _uiState.value.antennas.indexOfFirst { it.id == id }
 
@@ -178,6 +187,61 @@ class TowerInfoViewModel @Inject constructor(
         }
     }
 
+    // ── Photo upload helpers ────────────────────────────────────────────────
+    private fun buildTowerPhotoList(s: TowerInfoUiState, recordId: String): List<PhotoToUpload> =
+        buildList {
+            s.antennas.forEach { a ->
+            a.modelPlatePhoto?.let  { add(PhotoToUpload(it, "tower", "ant_${a.id}_model_plate", recordId)) }
+            a.portsPhoto?.let        { add(PhotoToUpload(it, "tower", "ant_${a.id}_ports", recordId)) }
+            a.dimensionsPhoto1?.let  { add(PhotoToUpload(it, "tower", "ant_${a.id}_dim1", recordId)) }
+            a.dimensionsPhoto2?.let  { add(PhotoToUpload(it, "tower", "ant_${a.id}_dim2", recordId)) }
+            a.dimensionsPhoto3?.let  { add(PhotoToUpload(it, "tower", "ant_${a.id}_dim3", recordId)) }
+            a.azimuthPhoto?.let      { add(PhotoToUpload(it, "tower", "ant_${a.id}_azimuth", recordId)) }
+            a.heightPhoto?.let       { add(PhotoToUpload(it, "tower", "ant_${a.id}_height", recordId)) }
+        }
+            s.rrus.forEach { r ->
+            r.modelPlatePhoto?.let  { add(PhotoToUpload(it, "tower", "rru_${r.id}_model_plate", recordId)) }
+            r.dimensionsPhoto1?.let { add(PhotoToUpload(it, "tower", "rru_${r.id}_dim1", recordId)) }
+            r.dimensionsPhoto2?.let { add(PhotoToUpload(it, "tower", "rru_${r.id}_dim2", recordId)) }
+            r.dimensionsPhoto3?.let { add(PhotoToUpload(it, "tower", "rru_${r.id}_dim3", recordId)) }
+        }
+        }
+
+    private suspend fun collectPhotoUploads(
+        photosToUpload: List<PhotoToUpload>,
+        onStarted: () -> Unit,
+        onPhotoStarted: (Int, String) -> Unit,
+        onPhotoDone: (String) -> Unit,
+        onPhotoFailed: (String) -> Unit,
+        onDone: () -> Unit
+    ): Map<String, String> {
+        if (photosToUpload.isEmpty()) return emptyMap()
+
+        onStarted()
+        var photoUrls = emptyMap<String, String>()
+
+        auditRepository.uploadPhotos(siteId, photosToUpload).collect { progress ->
+            when (progress) {
+                is UploadProgress.Started -> { /* total already set in onStarted */ }
+                is UploadProgress.PhotoStarted -> {
+                    onPhotoStarted(progress.index, progress.fieldName)
+                }
+                is UploadProgress.PhotoDone -> {
+                    photoUrls = photoUrls + (progress.fieldName to progress.serverUrl)
+                    onPhotoDone(progress.fieldName)
+                }
+                is UploadProgress.PhotoFailed -> {
+                    onPhotoFailed(progress.fieldName)
+                }
+                is UploadProgress.Done -> {
+                    photoUrls = progress.photoUrls
+                    onDone()
+                }
+            }
+        }
+        return photoUrls
+    }
+
     // ── Submit ────────────────────────────────────────────────────────────
     fun submit() {
         viewModelScope.launch {
@@ -185,58 +249,45 @@ class TowerInfoViewModel @Inject constructor(
 
             val s = _uiState.value
             val engineerName = authRepository.userName.first().orEmpty().ifBlank { "Unknown" }
+            val recordId = UUID.randomUUID().toString()
 
-            val antennasJson = s.antennas.map { a ->
-                buildMap<String, Any> {
-                    put("id", a.id)
-                    put("equipment_type", a.equipmentType)
-                    put("manufacturer", a.manufacturer)
-                    put("model_number", a.modelNumber)
-                    put("tenant_owner", a.tenantOwner)
-                    put("sector", a.sector)
-                    put("azimuth", a.azimuth)
-                    put("height_to_centre", a.heightToCentre)
-                    put("length_dia_mm", a.lengthDia)
-                    put("width_mm", a.width)
-                    put("height_mm", a.height)
-                    put("active_inactive", a.activeInactive)
-                    put("equipment_labelling", a.equipmentLabelling)
-                    a.modelPlatePhoto?.let { put("photo_model_plate", it) }
-                    a.portsPhoto?.let { put("photo_ports", it) }
-                    a.dimensionsPhoto1?.let { put("photo_dim1", it) }
-                    a.dimensionsPhoto2?.let { put("photo_dim2", it) }
-                    a.dimensionsPhoto3?.let { put("photo_dim3", it) }
-                    a.azimuthPhoto?.let { put("photo_azimuth", it) }
-                    a.heightPhoto?.let { put("photo_height", it) }
+            val photosToUpload = buildTowerPhotoList(s, recordId)
+
+            var photoUrls = emptyMap<String, String>()
+            if (photosToUpload.isNotEmpty()) {
+                photoUrls = collectPhotoUploads(
+                    photosToUpload = photosToUpload,
+                    onStarted = {
+                        _uiState.update { it.copy(
+                            isUploadingPhotos = true,
+                            uploadTotal = photosToUpload.size,
+                            uploadCurrent = 0,
+                            uploadCurrentName = "",
+                            uploadPhotoStatuses = photosToUpload.associate { it.fieldName to PhotoUploadStatus.PENDING }
+                        )}
+                    },
+                    onPhotoStarted = { idx, fieldName ->
+                        _uiState.update { it.copy(uploadCurrent = idx + 1, uploadCurrentName = fieldName, uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.UPLOADING)) }
+                    },
+                    onPhotoDone = { fieldName ->
+                        _uiState.update { it.copy(uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.DONE)) }
+                    },
+                    onPhotoFailed = { fieldName ->
+                        _uiState.update { it.copy(uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.FAILED)) }
+                    },
+                    onDone = {
+                        _uiState.update { it.copy(isUploadingPhotos = false) }
+                    }
+                )
+
+                val allFailed = _uiState.value.uploadPhotoStatuses.values.all { it == PhotoUploadStatus.FAILED }
+                if (allFailed && photoUrls.isEmpty()) {
+                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false, submitError = "All photo uploads failed. Check your connection.") }
+                    return@launch
                 }
             }
 
-            val rrusJson = s.rrus.map { r ->
-                buildMap<String, Any> {
-                    put("id", r.id)
-                    put("equipment_type", r.equipmentType)
-                    put("manufacturer", r.manufacturer)
-                    put("model_number", r.modelNumber)
-                    put("tenant_owner", r.tenantOwner)
-                    put("sector", r.sector)
-                    put("length_dia_mm", r.lengthDia)
-                    put("width_mm", r.width)
-                    put("height_mm", r.height)
-                    put("active_inactive", r.activeInactive)
-                    put("equipment_labelling", r.equipmentLabelling)
-                    r.modelPlatePhoto?.let { put("photo_model_plate", it) }
-                    r.dimensionsPhoto1?.let { put("photo_dim1", it) }
-                    r.dimensionsPhoto2?.let { put("photo_dim2", it) }
-                    r.dimensionsPhoto3?.let { put("photo_dim3", it) }
-                }
-            }
-
-            val payload = buildMap<String, Any> {
-                put("type", "tower")
-                put("antennas", antennasJson)
-                put("rrus", rrusJson)
-            }
-
+            val payload = buildPayload(s, recordId, photoUrls)
             auditRepository.submitAudit(
                 siteId = siteId,
                 type = "tower",
@@ -245,74 +296,62 @@ class TowerInfoViewModel @Inject constructor(
                 action = "submit"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSubmitting = false) }
+                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false) }
                     _events.emit(TowerInfoEvent.SubmitSuccess)
                 },
                 onFailure = { e ->
-                    _uiState.update { it.copy(isSubmitting = false, submitError = e.message ?: "Submission failed") }
+                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false, submitError = e.message ?: "Submission failed") }
                 }
             )
         }
     }
 
+    // ── Save Draft ────────────────────────────────────────────────────────
     fun saveDraft() {
         viewModelScope.launch {
             _uiState.update { it.copy(isSavingDraft = true, submitError = null) }
 
             val s = _uiState.value
             val engineerName = authRepository.userName.first().orEmpty().ifBlank { "Unknown" }
+            val recordId = UUID.randomUUID().toString()
 
-            val antennasJson = s.antennas.map { a ->
-                buildMap<String, Any> {
-                    put("id", a.id)
-                    put("equipment_type", a.equipmentType)
-                    put("manufacturer", a.manufacturer)
-                    put("model_number", a.modelNumber)
-                    put("tenant_owner", a.tenantOwner)
-                    put("sector", a.sector)
-                    put("azimuth", a.azimuth)
-                    put("height_to_centre", a.heightToCentre)
-                    put("length_dia_mm", a.lengthDia)
-                    put("width_mm", a.width)
-                    put("height_mm", a.height)
-                    put("active_inactive", a.activeInactive)
-                    put("equipment_labelling", a.equipmentLabelling)
-                    a.modelPlatePhoto?.let { put("photo_model_plate", it) }
-                    a.portsPhoto?.let { put("photo_ports", it) }
-                    a.dimensionsPhoto1?.let { put("photo_dim1", it) }
-                    a.dimensionsPhoto2?.let { put("photo_dim2", it) }
-                    a.dimensionsPhoto3?.let { put("photo_dim3", it) }
-                    a.azimuthPhoto?.let { put("photo_azimuth", it) }
-                    a.heightPhoto?.let { put("photo_height", it) }
+            val photosToUpload = buildTowerPhotoList(s, recordId)
+
+            var photoUrls = emptyMap<String, String>()
+            if (photosToUpload.isNotEmpty()) {
+                photoUrls = collectPhotoUploads(
+                    photosToUpload = photosToUpload,
+                    onStarted = {
+                        _uiState.update { it.copy(
+                            isUploadingPhotos = true,
+                            uploadTotal = photosToUpload.size,
+                            uploadCurrent = 0,
+                            uploadCurrentName = "",
+                            uploadPhotoStatuses = photosToUpload.associate { it.fieldName to PhotoUploadStatus.PENDING }
+                        )}
+                    },
+                    onPhotoStarted = { idx, fieldName ->
+                        _uiState.update { it.copy(uploadCurrent = idx + 1, uploadCurrentName = fieldName, uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.UPLOADING)) }
+                    },
+                    onPhotoDone = { fieldName ->
+                        _uiState.update { it.copy(uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.DONE)) }
+                    },
+                    onPhotoFailed = { fieldName ->
+                        _uiState.update { it.copy(uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.FAILED)) }
+                    },
+                    onDone = {
+                        _uiState.update { it.copy(isUploadingPhotos = false) }
+                    }
+                )
+
+                val allFailed = _uiState.value.uploadPhotoStatuses.values.all { it == PhotoUploadStatus.FAILED }
+                if (allFailed && photoUrls.isEmpty()) {
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false, submitError = "All photo uploads failed. Check your connection.") }
+                    return@launch
                 }
             }
 
-            val rrusJson = s.rrus.map { r ->
-                buildMap<String, Any> {
-                    put("id", r.id)
-                    put("equipment_type", r.equipmentType)
-                    put("manufacturer", r.manufacturer)
-                    put("model_number", r.modelNumber)
-                    put("tenant_owner", r.tenantOwner)
-                    put("sector", r.sector)
-                    put("length_dia_mm", r.lengthDia)
-                    put("width_mm", r.width)
-                    put("height_mm", r.height)
-                    put("active_inactive", r.activeInactive)
-                    put("equipment_labelling", r.equipmentLabelling)
-                    r.modelPlatePhoto?.let { put("photo_model_plate", it) }
-                    r.dimensionsPhoto1?.let { put("photo_dim1", it) }
-                    r.dimensionsPhoto2?.let { put("photo_dim2", it) }
-                    r.dimensionsPhoto3?.let { put("photo_dim3", it) }
-                }
-            }
-
-            val payload = buildMap<String, Any> {
-                put("type", "tower")
-                put("antennas", antennasJson)
-                put("rrus", rrusJson)
-            }
-
+            val payload = buildPayload(s, recordId, photoUrls)
             auditRepository.submitAudit(
                 siteId = siteId,
                 type = "tower",
@@ -321,13 +360,67 @@ class TowerInfoViewModel @Inject constructor(
                 action = "save"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSavingDraft = false) }
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false) }
                     _events.emit(TowerInfoEvent.SaveDraftSuccess)
                 },
                 onFailure = { e ->
-                    _uiState.update { it.copy(isSavingDraft = false, submitError = e.message ?: "Save draft failed") }
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false, submitError = e.message ?: "Save draft failed") }
                 }
             )
+        }
+    }
+
+    private fun buildPayload(s: TowerInfoUiState, recordId: String, photoUrls: Map<String, String>): Map<String, Any> {
+        val antennasJson = s.antennas.map { a ->
+            buildMap<String, Any> {
+                put("id", a.id)
+                put("equipment_type", a.equipmentType)
+                put("manufacturer", a.manufacturer)
+                put("model_number", a.modelNumber)
+                put("tenant_owner", a.tenantOwner)
+                put("sector", a.sector)
+                put("azimuth", a.azimuth)
+                put("height_to_centre", a.heightToCentre)
+                put("length_dia_mm", a.lengthDia)
+                put("width_mm", a.width)
+                put("height_mm", a.height)
+                put("active_inactive", a.activeInactive)
+                put("equipment_labelling", a.equipmentLabelling)
+                a.modelPlatePhoto?.let { put("photo_model_plate", photoUrls["ant_${a.id}_model_plate"] ?: it) }
+                a.portsPhoto?.let { put("photo_ports", photoUrls["ant_${a.id}_ports"] ?: it) }
+                a.dimensionsPhoto1?.let { put("photo_dim1", photoUrls["ant_${a.id}_dim1"] ?: it) }
+                a.dimensionsPhoto2?.let { put("photo_dim2", photoUrls["ant_${a.id}_dim2"] ?: it) }
+                a.dimensionsPhoto3?.let { put("photo_dim3", photoUrls["ant_${a.id}_dim3"] ?: it) }
+                a.azimuthPhoto?.let { put("photo_azimuth", photoUrls["ant_${a.id}_azimuth"] ?: it) }
+                a.heightPhoto?.let { put("photo_height", photoUrls["ant_${a.id}_height"] ?: it) }
+            }
+        }
+
+        val rrusJson = s.rrus.map { r ->
+            buildMap<String, Any> {
+                put("id", r.id)
+                put("equipment_type", r.equipmentType)
+                put("manufacturer", r.manufacturer)
+                put("model_number", r.modelNumber)
+                put("tenant_owner", r.tenantOwner)
+                put("sector", r.sector)
+                put("length_dia_mm", r.lengthDia)
+                put("width_mm", r.width)
+                put("height_mm", r.height)
+                put("active_inactive", r.activeInactive)
+                put("equipment_labelling", r.equipmentLabelling)
+                r.modelPlatePhoto?.let { put("photo_model_plate", photoUrls["rru_${r.id}_model_plate"] ?: it) }
+                r.dimensionsPhoto1?.let { put("photo_dim1", photoUrls["rru_${r.id}_dim1"] ?: it) }
+                r.dimensionsPhoto2?.let { put("photo_dim2", photoUrls["rru_${r.id}_dim2"] ?: it) }
+                r.dimensionsPhoto3?.let { put("photo_dim3", photoUrls["rru_${r.id}_dim3"] ?: it) }
+            }
+        }
+
+        return buildMap<String, Any> {
+            put("type", "tower")
+            put("id", recordId)
+            put("antennas", antennasJson)
+            put("rrus", rrusJson)
         }
     }
 }

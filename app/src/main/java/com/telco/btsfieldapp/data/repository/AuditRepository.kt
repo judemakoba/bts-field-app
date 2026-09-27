@@ -12,10 +12,38 @@ import com.telco.btsfieldapp.domain.model.DcdbRecord
 import com.telco.btsfieldapp.domain.model.GroundRecord
 import com.telco.btsfieldapp.domain.model.TowerRecord
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+
+// ── Photo upload types ─────────────────────────────────────────────────────────
+
+/** Describes one photo to be uploaded before saving a draft. */
+data class PhotoToUpload(
+    val localPath: String,
+    val auditType: String,  // "ground" | "dcdb" | "tower"
+    val fieldName: String,  // e.g. "site_photo", "np_section_photo", "tower_ant_abc123_model_plate"
+    val recordId: String   // UUID of the record this photo belongs to
+)
+
+/** Progress events emitted during a batch photo upload. */
+sealed class UploadProgress {
+    data class Started(val total: Int) : UploadProgress()
+    data class PhotoStarted(val index: Int, val fieldName: String) : UploadProgress()
+    data class PhotoDone(val index: Int, val fieldName: String, val serverUrl: String) : UploadProgress()
+    data class PhotoFailed(val index: Int, val fieldName: String, val error: String) : UploadProgress()
+    data class Done(val photoUrls: Map<String, String>) : UploadProgress()  // fieldName → serverUrl
+}
 
 @Singleton
 class AuditRepository @Inject constructor(
@@ -123,6 +151,57 @@ class AuditRepository @Inject constructor(
             }
         }
         return synced
+    }
+
+    /**
+     * Upload a batch of photos to the server with progress tracking.
+     * Returns a Flow<UploadProgress> that emits progress for each photo.
+     *
+     * @param siteId  The site identifier
+     * @param photos  List of photos to upload — each describes its local path,
+     *                audit type (ground/dcdb/tower), field name, and record ID
+     * @return Flow<UploadProgress> — emits per-photo and overall progress
+     */
+    fun uploadPhotos(siteId: String, photos: List<PhotoToUpload>): Flow<UploadProgress> = flow {
+        if (photos.isEmpty()) {
+            emit(UploadProgress.Done(emptyMap()))
+            return@flow
+        }
+
+        val results = mutableMapOf<String, String>() // fieldName → serverUrl
+        emit(UploadProgress.Started(photos.size))
+
+        photos.forEachIndexed { idx, photo ->
+            emit(UploadProgress.PhotoStarted(idx, photo.fieldName))
+            try {
+                val result = uploadSinglePhoto(siteId, photo)
+                results[photo.fieldName] = result
+                emit(UploadProgress.PhotoDone(idx, photo.fieldName, result))
+            } catch (e: Exception) {
+                emit(UploadProgress.PhotoFailed(idx, photo.fieldName, e.message ?: "Upload failed"))
+            }
+        }
+
+        emit(UploadProgress.Done(results))
+    }.flowOn(Dispatchers.IO)
+
+    private suspend fun uploadSinglePhoto(siteId: String, photo: PhotoToUpload): String {
+        return withContext(Dispatchers.IO) {
+            val file = File(photo.localPath)
+            if (!file.exists()) throw IllegalStateException("Photo file not found: ${photo.localPath}")
+
+            val siteIdBody = siteId.toRequestBody("text/plain".toMediaTypeOrNull())
+            val auditTypeBody = photo.auditType.toRequestBody("text/plain".toMediaTypeOrNull())
+            val recordIdBody = photo.recordId.toRequestBody("text/plain".toMediaTypeOrNull())
+            val fieldNameBody = photo.fieldName.toRequestBody("text/plain".toMediaTypeOrNull())
+
+            val mediaType = "image/jpeg".toMediaTypeOrNull() ?: throw IllegalStateException("Unsupported media type")
+            val requestFile = file.asRequestBody(mediaType)
+            val photoPart = MultipartBody.Part.createFormData("photo", file.name, requestFile)
+
+            val response = api.uploadPhoto(siteIdBody, auditTypeBody, recordIdBody, fieldNameBody, photoPart)
+            response.photo?.serverUrl ?: throw IllegalStateException("Server returned no URL")
+        }
     }
 
     fun getAllAudits(): Flow<List<AuditRecord>> =

@@ -87,13 +87,15 @@ fun TowerInfoScreen(
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    val isBusy = uiState.isSubmitting || uiState.isSavingDraft || uiState.isUploadingPhotos
+
                     OutlinedButton(
                         onClick = viewModel::saveDraft,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
-                        enabled = !uiState.isSubmitting && !uiState.isSavingDraft
+                        enabled = !isBusy
                     ) {
-                        if (uiState.isSavingDraft) {
+                        if (uiState.isSavingDraft || uiState.isUploadingPhotos) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                         } else {
                             Icon(Icons.Default.Save, null, modifier = Modifier.size(18.dp))
@@ -106,9 +108,9 @@ fun TowerInfoScreen(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
-                        enabled = !uiState.isSubmitting && !uiState.isSavingDraft
+                        enabled = !isBusy
                     ) {
-                        if (uiState.isSubmitting) {
+                        if (uiState.isSubmitting || uiState.isUploadingPhotos) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
                                 color = Color.White,
@@ -125,6 +127,15 @@ fun TowerInfoScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
+        // Upload progress overlay
+        UploadProgressOverlay(
+            title = if (uiState.isSubmitting) "Submitting Report..." else "Saving Draft...",
+            isVisible = uiState.isUploadingPhotos,
+            total = uiState.uploadTotal,
+            current = uiState.uploadCurrent,
+            statuses = uiState.uploadPhotoStatuses
+        )
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()

@@ -1,8 +1,21 @@
 package com.telco.btsfieldapp.data.remote
 
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.http.*
 
 interface ApiService {
+
+    // ── Photo Upload (multipart) ───────────────────────────────────────────────
+    @Multipart
+    @POST("audit/upload-photo")
+    suspend fun uploadPhoto(
+        @Part("siteId") siteId: RequestBody,
+        @Part("auditType") auditType: RequestBody,
+        @Part("recordId") recordId: RequestBody,
+        @Part("fieldName") fieldName: RequestBody,
+        @Part photo: MultipartBody.Part
+    ): PhotoUploadResponse
 
     // ── Auth ────────────────────────────────────────────────────────────────
     @POST("auth/login")

@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.telco.btsfieldapp.data.repository.AuditRepository
 import com.telco.btsfieldapp.data.repository.AuthRepository
+import com.telco.btsfieldapp.data.repository.PhotoToUpload
 import com.telco.btsfieldapp.data.repository.SiteRepository
+import com.telco.btsfieldapp.data.repository.UploadProgress
 import com.telco.btsfieldapp.domain.model.DcduConnection
 import com.telco.btsfieldapp.domain.model.DcduSlot
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -100,7 +102,14 @@ data class DcdbInfoUiState(
     val expandedSections: Set<Int> = setOf(0),
     val siteId: String = "",
     val siteName: String = "",
-    val locationSummary: String = "Kampala"
+    val locationSummary: String = "Kampala",
+
+    // Photo upload state
+    val isUploadingPhotos: Boolean = false,
+    val uploadTotal: Int = 0,
+    val uploadCurrent: Int = 0,
+    val uploadCurrentName: String = "",
+    val uploadPhotoStatuses: Map<String, PhotoUploadStatus> = emptyMap()
 )
 
 sealed class DcdbInfoEvent {
@@ -329,6 +338,56 @@ class DcdbInfoViewModel @Inject constructor(
         }
     }
 
+    // ── Photo upload helpers ────────────────────────────────────────────────
+    private fun buildDcdbPhotoList(s: DcdbInfoUiState, recordId: String): List<PhotoToUpload> =
+        buildList {
+            s.npSectionPhotoPath?.let { add(PhotoToUpload(it, "dcdb", "np_section_photo", recordId)) }
+            s.npLoadPhotoPath?.let { add(PhotoToUpload(it, "dcdb", "np_load_photo", recordId)) }
+            s.pSectionPhotoPath?.let { add(PhotoToUpload(it, "dcdb", "p_section_photo", recordId)) }
+            s.pLoadPhotoPath?.let { add(PhotoToUpload(it, "dcdb", "p_load_photo", recordId)) }
+            s.npDcdusConnections.forEachIndexed { idx, conn ->
+                conn.photoPath?.let { add(PhotoToUpload(it, "dcdb", "np_dcdu_conn_${idx}_photo", recordId)) }
+            }
+            s.pDcdusConnections.forEachIndexed { idx, conn ->
+                conn.photoPath?.let { add(PhotoToUpload(it, "dcdb", "p_dcdu_conn_${idx}_photo", recordId)) }
+            }
+        }
+
+    private suspend fun collectPhotoUploads(
+        photosToUpload: List<PhotoToUpload>,
+        onStarted: () -> Unit,
+        onPhotoStarted: (Int, String) -> Unit,
+        onPhotoDone: (String) -> Unit,
+        onPhotoFailed: (String) -> Unit,
+        onDone: () -> Unit
+    ): Map<String, String> {
+        if (photosToUpload.isEmpty()) return emptyMap()
+
+        onStarted()
+        var photoUrls = emptyMap<String, String>()
+
+        auditRepository.uploadPhotos(siteId, photosToUpload).collect { progress ->
+            when (progress) {
+                is UploadProgress.Started -> { /* total already set in onStarted */ }
+                is UploadProgress.PhotoStarted -> {
+                    onPhotoStarted(progress.index, progress.fieldName)
+                }
+                is UploadProgress.PhotoDone -> {
+                    photoUrls = photoUrls + (progress.fieldName to progress.serverUrl)
+                    onPhotoDone(progress.fieldName)
+                }
+                is UploadProgress.PhotoFailed -> {
+                    onPhotoFailed(progress.fieldName)
+                }
+                is UploadProgress.Done -> {
+                    photoUrls = progress.photoUrls
+                    onDone()
+                }
+            }
+        }
+        return photoUrls
+    }
+
     // ── Submit ────────────────────────────────────────────────────────────
     fun submit() {
         viewModelScope.launch {
@@ -336,61 +395,45 @@ class DcdbInfoViewModel @Inject constructor(
 
             val s = _uiState.value
             val engineerName = authRepository.userName.first().orEmpty().ifBlank { "Unknown" }
+            val recordId = UUID.randomUUID().toString()
 
-            val payload = buildMap<String, Any> {
-                put("type", "dcdb_info")
-                put("grid_distance_to_3phase", s.gridDistanceTo3Phase)
+            val photosToUpload = buildDcdbPhotoList(s, recordId)
 
-                // Non-Priority
-                put("np_cable_size_dcdb", s.npCableSizeDcdb)
-                put("np_breaker1_mcb", s.npBreaker1Mcb)
-                put("np_dcdus", s.npDcdus.joinToString(";") { "${it.label}:${it.cableSize}mm²:${it.breakerRating}A" })
-                s.npSectionPhotoPath?.let { put("np_section_photo", it) }
-                put("np_load_measurement", s.npLoadMeasurement)
-                s.npLoadPhotoPath?.let { put("np_load_photo", it) }
-                put("np_load_measured_time", s.npLoadMeasuredTime)
+            var photoUrls = emptyMap<String, String>()
+            if (photosToUpload.isNotEmpty()) {
+                photoUrls = collectPhotoUploads(
+                    photosToUpload = photosToUpload,
+                    onStarted = {
+                        _uiState.update { it.copy(
+                            isUploadingPhotos = true,
+                            uploadTotal = photosToUpload.size,
+                            uploadCurrent = 0,
+                            uploadCurrentName = "",
+                            uploadPhotoStatuses = photosToUpload.associate { it.fieldName to PhotoUploadStatus.PENDING }
+                        )}
+                    },
+                    onPhotoStarted = { idx, fieldName ->
+                        _uiState.update { it.copy(uploadCurrent = idx + 1, uploadCurrentName = fieldName, uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.UPLOADING)) }
+                    },
+                    onPhotoDone = { fieldName ->
+                        _uiState.update { it.copy(uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.DONE)) }
+                    },
+                    onPhotoFailed = { fieldName ->
+                        _uiState.update { it.copy(uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.FAILED)) }
+                    },
+                    onDone = {
+                        _uiState.update { it.copy(isUploadingPhotos = false) }
+                    }
+                )
 
-                // Priority
-                put("p_cable_size_dcdb", s.pCableSizeDcdb)
-                put("p_breaker1_mcb", s.pBreaker1Mcb)
-                put("p_dcdus", s.pDcdus.joinToString(";") { "${it.label}:${it.cableSize}mm²:${it.breakerRating}A" })
-                s.pSectionPhotoPath?.let { put("p_section_photo", it) }
-                put("p_load_measurement", s.pLoadMeasurement)
-                s.pLoadPhotoPath?.let { put("p_load_photo", it) }
-                put("p_load_measured_time", s.pLoadMeasuredTime)
-
-                // DCDU connections
-                put("np_dcdu_connections", s.npDcdusConnections.joinToString(";") { "${it.breakerLabel}|${it.photoPath ?: ""}" })
-                put("p_dcdu_connections", s.pDcdusConnections.joinToString(";") { "${it.breakerLabel}|${it.photoPath ?: ""}" })
-                put("total_dcdu_count", s.totalDcdUCount)
-
-                // RRU
-                put("rru_count", s.rruCount)
-                put("rru_power_cable_count", s.rruPowerCableCount)
-                put("rru_power_cable_missing", s.rruPowerCableMissing)
-                put("rru_power_cable_length_per_run", s.rruPowerCableLengthPerRun)
-                put("rru_power_cable_total_missing", s.rruPowerCableTotalMissing)
-                put("rru_earthing_cable_count", s.rruEarthingCableCount)
-                put("rru_earthing_cable_missing", s.rruEarthingCableMissing)
-                put("rru_earthing_cable_length_per_run", s.rruEarthingCableLengthPerRun)
-
-                // AAU
-                put("aau_count", s.aauCount)
-                put("aau_power_cable_count", s.aauPowerCableCount)
-                put("aau_power_cable_missing", s.aauPowerCableMissing)
-                put("aau_power_cable_length_per_run", s.aauPowerCableLengthPerRun)
-                put("aau_power_cable_total_missing", s.aauPowerCableTotalMissing)
-                put("aau_earthing_cable_count", s.aauEarthingCableCount)
-                put("aau_earthing_cable_missing", s.aauEarthingCableMissing)
-                put("aau_earthing_cable_length_per_run", s.aauEarthingCableLengthPerRun)
-
-                // BTS Earthing
-                put("bts_earthing_cable_count", s.btsEarthingCableCount)
-                put("bts_earthing_cable_missing", s.btsEarthingCableMissing)
-                put("bts_earthing_length_per_run", s.btsEarthingLengthPerRun)
-                put("bts_earthing_total_missing", s.btsEarthingTotalMissing)
+                val allFailed = _uiState.value.uploadPhotoStatuses.values.all { it == PhotoUploadStatus.FAILED }
+                if (allFailed && photoUrls.isEmpty()) {
+                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false, submitError = "All photo uploads failed. Check your connection.") }
+                    return@launch
+                }
             }
 
+            val payload = buildPayload(s, recordId, photoUrls)
             auditRepository.submitAudit(
                 siteId = siteId,
                 type = "dcdb",
@@ -399,62 +442,62 @@ class DcdbInfoViewModel @Inject constructor(
                 action = "submit"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSubmitting = false) }
+                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false) }
                     _events.emit(DcdbInfoEvent.SubmitSuccess)
                 },
                 onFailure = { e ->
-                    _uiState.update { it.copy(isSubmitting = false, submitError = e.message ?: "Submission failed") }
+                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false, submitError = e.message ?: "Submission failed") }
                 }
             )
         }
     }
 
+    // ── Save Draft ─────────────────────────────────────────────────────────
     fun saveDraft() {
         viewModelScope.launch {
             _uiState.update { it.copy(isSavingDraft = true, submitError = null) }
+
             val s = _uiState.value
             val engineerName = authRepository.userName.first().orEmpty().ifBlank { "Unknown" }
-            val payload = buildMap<String, Any> {
-                put("type", "dcdb_info")
-                put("grid_distance_to_3phase", s.gridDistanceTo3Phase)
-                put("np_cable_size_dcdb", s.npCableSizeDcdb)
-                put("np_breaker1_mcb", s.npBreaker1Mcb)
-                put("np_dcdus", s.npDcdus.joinToString(";") { "${it.label}:${it.cableSize}mm²:${it.breakerRating}A" })
-                s.npSectionPhotoPath?.let { put("np_section_photo", it) }
-                put("np_load_measurement", s.npLoadMeasurement)
-                s.npLoadPhotoPath?.let { put("np_load_photo", it) }
-                put("np_load_measured_time", s.npLoadMeasuredTime)
-                put("p_cable_size_dcdb", s.pCableSizeDcdb)
-                put("p_breaker1_mcb", s.pBreaker1Mcb)
-                put("p_dcdus", s.pDcdus.joinToString(";") { "${it.label}:${it.cableSize}mm²:${it.breakerRating}A" })
-                s.pSectionPhotoPath?.let { put("p_section_photo", it) }
-                put("p_load_measurement", s.pLoadMeasurement)
-                s.pLoadPhotoPath?.let { put("p_load_photo", it) }
-                put("p_load_measured_time", s.pLoadMeasuredTime)
-                put("np_dcdu_connections", s.npDcdusConnections.joinToString(";") { "${it.breakerLabel}|${it.photoPath ?: ""}" })
-                put("p_dcdu_connections", s.pDcdusConnections.joinToString(";") { "${it.breakerLabel}|${it.photoPath ?: ""}" })
-                put("total_dcdu_count", s.totalDcdUCount)
-                put("rru_count", s.rruCount)
-                put("rru_power_cable_count", s.rruPowerCableCount)
-                put("rru_power_cable_missing", s.rruPowerCableMissing)
-                put("rru_power_cable_length_per_run", s.rruPowerCableLengthPerRun)
-                put("rru_power_cable_total_missing", s.rruPowerCableTotalMissing)
-                put("rru_earthing_cable_count", s.rruEarthingCableCount)
-                put("rru_earthing_cable_missing", s.rruEarthingCableMissing)
-                put("rru_earthing_cable_length_per_run", s.rruEarthingCableLengthPerRun)
-                put("aau_count", s.aauCount)
-                put("aau_power_cable_count", s.aauPowerCableCount)
-                put("aau_power_cable_missing", s.aauPowerCableMissing)
-                put("aau_power_cable_length_per_run", s.aauPowerCableLengthPerRun)
-                put("aau_power_cable_total_missing", s.aauPowerCableTotalMissing)
-                put("aau_earthing_cable_count", s.aauEarthingCableCount)
-                put("aau_earthing_cable_missing", s.aauEarthingCableMissing)
-                put("aau_earthing_cable_length_per_run", s.aauEarthingCableLengthPerRun)
-                put("bts_earthing_cable_count", s.btsEarthingCableCount)
-                put("bts_earthing_cable_missing", s.btsEarthingCableMissing)
-                put("bts_earthing_length_per_run", s.btsEarthingLengthPerRun)
-                put("bts_earthing_total_missing", s.btsEarthingTotalMissing)
+            val recordId = UUID.randomUUID().toString()
+
+            val photosToUpload = buildDcdbPhotoList(s, recordId)
+
+            var photoUrls = emptyMap<String, String>()
+            if (photosToUpload.isNotEmpty()) {
+                photoUrls = collectPhotoUploads(
+                    photosToUpload = photosToUpload,
+                    onStarted = {
+                        _uiState.update { it.copy(
+                            isUploadingPhotos = true,
+                            uploadTotal = photosToUpload.size,
+                            uploadCurrent = 0,
+                            uploadCurrentName = "",
+                            uploadPhotoStatuses = photosToUpload.associate { it.fieldName to PhotoUploadStatus.PENDING }
+                        )}
+                    },
+                    onPhotoStarted = { idx, fieldName ->
+                        _uiState.update { it.copy(uploadCurrent = idx + 1, uploadCurrentName = fieldName, uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.UPLOADING)) }
+                    },
+                    onPhotoDone = { fieldName ->
+                        _uiState.update { it.copy(uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.DONE)) }
+                    },
+                    onPhotoFailed = { fieldName ->
+                        _uiState.update { it.copy(uploadPhotoStatuses = it.uploadPhotoStatuses + (fieldName to PhotoUploadStatus.FAILED)) }
+                    },
+                    onDone = {
+                        _uiState.update { it.copy(isUploadingPhotos = false) }
+                    }
+                )
+
+                val allFailed = _uiState.value.uploadPhotoStatuses.values.all { it == PhotoUploadStatus.FAILED }
+                if (allFailed && photoUrls.isEmpty()) {
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false, submitError = "All photo uploads failed. Check your connection.") }
+                    return@launch
+                }
             }
+
+            val payload = buildPayload(s, recordId, photoUrls)
             auditRepository.submitAudit(
                 siteId = siteId,
                 type = "dcdb",
@@ -463,13 +506,74 @@ class DcdbInfoViewModel @Inject constructor(
                 action = "save"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSavingDraft = false) }
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false) }
                     _events.emit(DcdbInfoEvent.SaveDraftSuccess)
                 },
                 onFailure = { e ->
-                    _uiState.update { it.copy(isSavingDraft = false, submitError = e.message ?: "Save draft failed") }
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false, submitError = e.message ?: "Save draft failed") }
                 }
             )
         }
+    }
+
+    private fun buildPayload(s: DcdbInfoUiState, recordId: String, photoUrls: Map<String, String>): Map<String, Any> = buildMap {
+        put("type", "dcdb")
+        put("id", recordId)
+        put("grid_distance_to_3phase", s.gridDistanceTo3Phase)
+
+        // Non-Priority
+        put("np_cable_size_dcdb", s.npCableSizeDcdb)
+        put("np_breaker1_mcb", s.npBreaker1Mcb)
+        put("np_dcdus", s.npDcdus.joinToString(";") { "${it.label}:${it.cableSize}mm²:${it.breakerRating}A" })
+        s.npSectionPhotoPath?.let { put("np_section_photo", photoUrls["np_section_photo"] ?: it) }
+        put("np_load_measurement", s.npLoadMeasurement)
+        s.npLoadPhotoPath?.let { put("np_load_photo", photoUrls["np_load_photo"] ?: it) }
+        put("np_load_measured_time", s.npLoadMeasuredTime)
+
+        // Priority
+        put("p_cable_size_dcdb", s.pCableSizeDcdb)
+        put("p_breaker1_mcb", s.pBreaker1Mcb)
+        put("p_dcdus", s.pDcdus.joinToString(";") { "${it.label}:${it.cableSize}mm²:${it.breakerRating}A" })
+        s.pSectionPhotoPath?.let { put("p_section_photo", photoUrls["p_section_photo"] ?: it) }
+        put("p_load_measurement", s.pLoadMeasurement)
+        s.pLoadPhotoPath?.let { put("p_load_photo", photoUrls["p_load_photo"] ?: it) }
+        put("p_load_measured_time", s.pLoadMeasuredTime)
+
+        // DCDU connections — replace local photo paths with server URLs
+        put("np_dcdu_connections", s.npDcdusConnections.mapIndexed { idx, conn ->
+            val serverUrl = photoUrls["np_dcdu_conn_${idx}_photo"]
+            "${conn.breakerLabel}|${serverUrl ?: conn.photoPath ?: ""}"
+        }.joinToString(";"))
+        put("p_dcdu_connections", s.pDcdusConnections.mapIndexed { idx, conn ->
+            val serverUrl = photoUrls["p_dcdu_conn_${idx}_photo"]
+            "${conn.breakerLabel}|${serverUrl ?: conn.photoPath ?: ""}"
+        }.joinToString(";"))
+        put("total_dcdu_count", s.totalDcdUCount)
+
+        // RRU
+        put("rru_count", s.rruCount)
+        put("rru_power_cable_count", s.rruPowerCableCount)
+        put("rru_power_cable_missing", s.rruPowerCableMissing)
+        put("rru_power_cable_length_per_run", s.rruPowerCableLengthPerRun)
+        put("rru_power_cable_total_missing", s.rruPowerCableTotalMissing)
+        put("rru_earthing_cable_count", s.rruEarthingCableCount)
+        put("rru_earthing_cable_missing", s.rruEarthingCableMissing)
+        put("rru_earthing_cable_length_per_run", s.rruEarthingCableLengthPerRun)
+
+        // AAU
+        put("aau_count", s.aauCount)
+        put("aau_power_cable_count", s.aauPowerCableCount)
+        put("aau_power_cable_missing", s.aauPowerCableMissing)
+        put("aau_power_cable_length_per_run", s.aauPowerCableLengthPerRun)
+        put("aau_power_cable_total_missing", s.aauPowerCableTotalMissing)
+        put("aau_earthing_cable_count", s.aauEarthingCableCount)
+        put("aau_earthing_cable_missing", s.aauEarthingCableMissing)
+        put("aau_earthing_cable_length_per_run", s.aauEarthingCableLengthPerRun)
+
+        // BTS Earthing
+        put("bts_earthing_cable_count", s.btsEarthingCableCount)
+        put("bts_earthing_cable_missing", s.btsEarthingCableMissing)
+        put("bts_earthing_length_per_run", s.btsEarthingLengthPerRun)
+        put("bts_earthing_total_missing", s.btsEarthingTotalMissing)
     }
 }

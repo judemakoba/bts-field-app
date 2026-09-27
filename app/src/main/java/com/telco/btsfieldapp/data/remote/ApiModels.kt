@@ -179,6 +179,21 @@ data class RecordResponse(
     val message: String?
 )
 
+// ── Photo Upload response ────────────────────────────────────────────────────────
+
+data class PhotoUploadResponse(
+    val success: Boolean?,
+    val photo: PhotoInfo?
+)
+
+data class PhotoInfo(
+    val id: String?,
+    val serverUrl: String?,
+    val thumbnailUrl: String?,
+    val filename: String?,
+    val size: Long?
+)
+
 // ── Generic API response ────────────────────────────────────────────────────────
 
 data class ApiResponse(
