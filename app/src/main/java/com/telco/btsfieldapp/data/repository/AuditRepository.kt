@@ -40,7 +40,7 @@ data class PhotoToUpload(
 sealed class UploadProgress {
     data class Started(val total: Int) : UploadProgress()
     data class PhotoStarted(val index: Int, val fieldName: String) : UploadProgress()
-    data class PhotoDone(val index: Int, val fieldName: String, val serverUrl: String) : UploadProgress()
+    data class PhotoDone(val index: Int, val fieldName: String, val serverUrl: String, val localPath: String) : UploadProgress()
     data class PhotoFailed(val index: Int, val fieldName: String, val error: String) : UploadProgress()
     data class Done(val photoUrls: Map<String, String>) : UploadProgress()  // fieldName → serverUrl
 }
@@ -176,7 +176,7 @@ class AuditRepository @Inject constructor(
             try {
                 val result = uploadSinglePhoto(siteId, photo)
                 results[photo.fieldName] = result
-                emit(UploadProgress.PhotoDone(idx, photo.fieldName, result))
+                emit(UploadProgress.PhotoDone(idx, photo.fieldName, result, photo.localPath))
             } catch (e: Exception) {
                 emit(UploadProgress.PhotoFailed(idx, photo.fieldName, e.message ?: "Upload failed"))
             }

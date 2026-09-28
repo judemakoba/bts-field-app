@@ -4,9 +4,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -19,12 +22,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.layout.ContentScale
+import com.telco.btsfieldapp.ui.components.PhotoViewerDialog
 import com.telco.btsfieldapp.ui.theme.*
 import kotlinx.coroutines.flow.collectLatest
+import java.io.File
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 private val SECTION_COLORS = listOf(
     Color(0xFFF59E0B), // amber  — DCDB
@@ -47,6 +60,9 @@ fun DcdbInfoScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Photo viewer state for DCDU connection photos
+    var viewerConnPhoto by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(Unit) {
         viewModel.events.collectLatest { event ->
             when (event) {
@@ -59,7 +75,8 @@ fun DcdbInfoScreen(
         uiState.submitError?.let { snackbarHostState.showSnackbar(it) }
     }
 
-    Scaffold(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("DCDB Information", fontWeight = FontWeight.Bold) },
@@ -227,7 +244,8 @@ fun DcdbInfoScreen(
                         photos = listOfNotNull(uiState.npSectionPhotoPath),
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_np_section") },
                         onRemovePhoto = { viewModel.onNpSectionPhoto("") },
-                        maxPhotos = 1
+                        maxPhotos = 1,
+                        uploadedPhotoPaths = uiState.uploadedPhotoPaths
                     )
                     Spacer(Modifier.height(8.dp))
                     FormTextField(
@@ -242,7 +260,8 @@ fun DcdbInfoScreen(
                         photos = listOfNotNull(uiState.npLoadPhotoPath),
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_np_load") },
                         onRemovePhoto = { viewModel.onNpLoadPhoto("") },
-                        maxPhotos = 1
+                        maxPhotos = 1,
+                        uploadedPhotoPaths = uiState.uploadedPhotoPaths
                     )
                     if (uiState.npLoadMeasuredTime.isNotBlank()) {
                         Spacer(Modifier.height(4.dp))
@@ -323,7 +342,8 @@ fun DcdbInfoScreen(
                         photos = listOfNotNull(uiState.pSectionPhotoPath),
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_p_section") },
                         onRemovePhoto = { viewModel.onPSectionPhoto("") },
-                        maxPhotos = 1
+                        maxPhotos = 1,
+                        uploadedPhotoPaths = uiState.uploadedPhotoPaths
                     )
                     Spacer(Modifier.height(8.dp))
                     FormTextField(
@@ -338,7 +358,8 @@ fun DcdbInfoScreen(
                         photos = listOfNotNull(uiState.pLoadPhotoPath),
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_p_load") },
                         onRemovePhoto = { viewModel.onPLoadPhoto("") },
-                        maxPhotos = 1
+                        maxPhotos = 1,
+                        uploadedPhotoPaths = uiState.uploadedPhotoPaths
                     )
                     if (uiState.pLoadMeasuredTime.isNotBlank()) {
                         Spacer(Modifier.height(4.dp))
@@ -377,31 +398,18 @@ fun DcdbInfoScreen(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp)
                             )
-                            val hasPhoto = conn.photoPath != null
-                            OutlinedButton(
-                                onClick = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_np_conn_$idx") },
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(
-                                    if (hasPhoto) Icons.Default.CheckCircle else Icons.Default.AddAPhoto,
-                                    null,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = if (hasPhoto) Color(0xFF22C55E) else PrimaryGreen
-                                )
-                            }
+                            DcdbConnPhotoThumbnail(
+                                photoPath = conn.photoPath,
+                                isUploaded = conn.photoPath in uiState.uploadedPhotoPaths,
+                                onCapture = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_np_conn_$idx") },
+                                onRemove = { viewModel.onNpDcduConnectionPhotoChange(idx, "") },
+                                onView = { conn.photoPath?.let { viewerConnPhoto = it } }
+                            )
                             if (uiState.npDcdusConnections.size > 1) {
                                 IconButton(onClick = { viewModel.removeNpDcduConnection(idx) }) {
                                     Icon(Icons.Default.RemoveCircleOutline, "Remove", tint = ErrorColor)
                                 }
                             }
-                        }
-                        if (conn.photoPath != null) {
-                            Text(
-                                text = "✓ Photo captured",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF22C55E),
-                                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                            )
                         }
                         Spacer(Modifier.height(6.dp))
                     }
@@ -430,31 +438,18 @@ fun DcdbInfoScreen(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp)
                             )
-                            val hasPhoto = conn.photoPath != null
-                            OutlinedButton(
-                                onClick = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_p_conn_$idx") },
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(
-                                    if (hasPhoto) Icons.Default.CheckCircle else Icons.Default.AddAPhoto,
-                                    null,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = if (hasPhoto) Color(0xFF22C55E) else PrimaryGreen
-                                )
-                            }
+                            DcdbConnPhotoThumbnail(
+                                photoPath = conn.photoPath,
+                                isUploaded = conn.photoPath in uiState.uploadedPhotoPaths,
+                                onCapture = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "dcdb_p_conn_$idx") },
+                                onRemove = { viewModel.onPDcduConnectionPhotoChange(idx, "") },
+                                onView = { conn.photoPath?.let { viewerConnPhoto = it } }
+                            )
                             if (uiState.pDcdusConnections.size > 1) {
                                 IconButton(onClick = { viewModel.removePDcduConnection(idx) }) {
                                     Icon(Icons.Default.RemoveCircleOutline, "Remove", tint = ErrorColor)
                                 }
                             }
-                        }
-                        if (conn.photoPath != null) {
-                            Text(
-                                text = "✓ Photo captured",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF22C55E),
-                                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                            )
                         }
                         Spacer(Modifier.height(6.dp))
                     }
@@ -584,6 +579,23 @@ fun DcdbInfoScreen(
             item { Spacer(Modifier.height(80.dp)) }
         }
     }
+
+    // Photo viewer dialog for DCDU connection photos
+    viewerConnPhoto?.let { path ->
+        PhotoViewerDialog(
+            photoPath = path,
+            onDismiss = { viewerConnPhoto = null },
+            onDelete = {
+                // Find and clear the photo path from the right connection
+                val npIdx = uiState.npDcdusConnections.indexOfFirst { it.photoPath == path }
+                if (npIdx >= 0) viewModel.onNpDcduConnectionPhotoChange(npIdx, "")
+                val pIdx = uiState.pDcdusConnections.indexOfFirst { it.photoPath == path }
+                if (pIdx >= 0) viewModel.onPDcduConnectionPhotoChange(pIdx, "")
+                viewerConnPhoto = null
+            }
+        )
+    }
+    } // end Box
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -741,15 +753,22 @@ private fun PhotoCaptureRow(
     photos: List<String>,
     onAddPhoto: () -> Unit,
     onRemovePhoto: (String) -> Unit,
-    maxPhotos: Int
+    maxPhotos: Int,
+    uploadedPhotoPaths: Set<String> = emptySet()
 ) {
+    var viewerPhoto by remember { mutableStateOf<String?>(null) }
+
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
             Text(
                 text = "${photos.size}/$maxPhotos",
                 style = MaterialTheme.typography.labelSmall,
@@ -757,45 +776,210 @@ private fun PhotoCaptureRow(
             )
         }
         Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            photos.forEach { path ->
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .border(1.dp, PrimaryGreen.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                        .background(PrimaryGreen.copy(alpha = 0.08f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val fileName = path.substringAfterLast("/").substringAfterLast("\\").take(10)
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Image, null, tint = PrimaryGreen, modifier = Modifier.size(24.dp))
-                        Text(text = fileName, style = MaterialTheme.typography.labelSmall, color = PrimaryGreen, maxLines = 1)
-                    }
-                    IconButton(
-                        onClick = { onRemovePhoto(path) },
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .size(24.dp)
-                            .background(ErrorColor, RoundedCornerShape(4.dp))
-                    ) {
-                        Icon(Icons.Default.Close, "Remove", tint = Color.White, modifier = Modifier.size(14.dp))
-                    }
-                }
+
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(photos) { path ->
+                PhotoThumbnail(
+                    path = path,
+                    isUploaded = path in uploadedPhotoPaths,
+                    onRemove = { onRemovePhoto(path) },
+                    onView = { viewerPhoto = path }
+                )
             }
             if (photos.size < maxPhotos) {
-                OutlinedCard(
-                    onClick = onAddPhoto,
-                    modifier = Modifier.size(72.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.5.dp, PrimaryGreen.copy(alpha = 0.5f)),
-                    colors = CardDefaults.outlinedCardColors(containerColor = PrimaryGreen.copy(alpha = 0.05f))
-                ) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.AddAPhoto, "Add photo", tint = PrimaryGreen, modifier = Modifier.size(28.dp))
+                item {
+                    OutlinedCard(
+                        onClick = onAddPhoto,
+                        modifier = Modifier.size(72.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.5.dp, PrimaryGreen.copy(alpha = 0.5f)),
+                        colors = CardDefaults.outlinedCardColors(containerColor = PrimaryGreen.copy(alpha = 0.05f))
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.AddAPhoto, "Add photo", tint = PrimaryGreen, modifier = Modifier.size(28.dp))
+                        }
                     }
                 }
             }
+        }
+    }
+
+    // Photo viewer dialog
+    viewerPhoto?.let { path ->
+        PhotoViewerDialog(
+            photoPath = path,
+            onDismiss = { viewerPhoto = null },
+            onDelete = {
+                onRemovePhoto(path)
+                viewerPhoto = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun PhotoThumbnail(
+    path: String,
+    isUploaded: Boolean,
+    onRemove: () -> Unit,
+    onView: () -> Unit
+) {
+    val context = LocalContext.current
+    val file = remember(path) { File(path) }
+
+    Box(
+        modifier = Modifier
+            .size(80.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .border(
+                width = 1.5.dp,
+                color = if (isUploaded) PrimaryGreen else Color(0xFFF59E0B),
+                shape = RoundedCornerShape(10.dp)
+            )
+            .background(if (isUploaded) Color.Transparent else Color(0xFFFFFBEB))
+    ) {
+        // Actual image thumbnail
+        if (file.exists()) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(file)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Photo thumbnail",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { onView() },
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize().background(PrimaryGreen.copy(alpha = 0.08f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Image,
+                    contentDescription = null,
+                    tint = PrimaryGreen,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+
+        // Upload status badge — exclamation mark if not uploaded
+        if (!isUploaded) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(4.dp)
+                    .size(20.dp)
+                    .background(Color(0xFFF59E0B), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "!",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Remove button
+        IconButton(
+            onClick = onRemove,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(2.dp)
+                .size(22.dp)
+                .background(ErrorColor, CircleShape)
+        ) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Remove",
+                tint = Color.White,
+                modifier = Modifier.size(12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun DcdbConnPhotoThumbnail(
+    photoPath: String?,
+    isUploaded: Boolean,
+    onCapture: () -> Unit,
+    onRemove: () -> Unit,
+    onView: () -> Unit
+) {
+    if (photoPath != null) {
+        val context = LocalContext.current
+        val file = remember(photoPath) { File(photoPath) }
+
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .border(
+                    width = 1.5.dp,
+                    color = if (isUploaded) PrimaryGreen else Color(0xFFF59E0B),
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .clickable { onView() }
+        ) {
+            if (file.exists()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(file)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Photo thumbnail",
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(PrimaryGreen.copy(alpha = 0.08f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Image, null, tint = PrimaryGreen, modifier = Modifier.size(24.dp))
+                }
+            }
+
+            // Upload badge
+            if (!isUploaded) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(2.dp)
+                        .size(16.dp)
+                        .background(Color(0xFFF59E0B), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("!", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // Remove button
+            IconButton(
+                onClick = onRemove,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(18.dp)
+                    .background(ErrorColor, CircleShape)
+            ) {
+                Icon(Icons.Default.Close, "Remove", tint = Color.White, modifier = Modifier.size(10.dp))
+            }
+        }
+    } else {
+        OutlinedButton(
+            onClick = onCapture,
+            modifier = Modifier.height(56.dp),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(18.dp), tint = PrimaryGreen)
+            Spacer(Modifier.width(4.dp))
+            Text("Photo", style = MaterialTheme.typography.labelMedium)
         }
     }
 }

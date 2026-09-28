@@ -39,7 +39,8 @@ data class TowerInfoUiState(
     val uploadTotal: Int = 0,
     val uploadCurrent: Int = 0,
     val uploadCurrentName: String = "",
-    val uploadPhotoStatuses: Map<String, PhotoUploadStatus> = emptyMap()
+    val uploadPhotoStatuses: Map<String, PhotoUploadStatus> = emptyMap(),
+    val uploadedPhotoPaths: Set<String> = emptySet()
 )
 
 sealed class TowerInfoEvent {
@@ -214,11 +215,12 @@ class TowerInfoViewModel @Inject constructor(
         onPhotoDone: (String) -> Unit,
         onPhotoFailed: (String) -> Unit,
         onDone: () -> Unit
-    ): Map<String, String> {
-        if (photosToUpload.isEmpty()) return emptyMap()
+    ): Pair<Map<String, String>, Set<String>> {
+        if (photosToUpload.isEmpty()) return Pair(emptyMap(), emptySet())
 
         onStarted()
         var photoUrls = emptyMap<String, String>()
+        val uploadedPaths = mutableSetOf<String>()
 
         auditRepository.uploadPhotos(siteId, photosToUpload).collect { progress ->
             when (progress) {
@@ -228,6 +230,7 @@ class TowerInfoViewModel @Inject constructor(
                 }
                 is UploadProgress.PhotoDone -> {
                     photoUrls = photoUrls + (progress.fieldName to progress.serverUrl)
+                    uploadedPaths.add(progress.localPath)
                     onPhotoDone(progress.fieldName)
                 }
                 is UploadProgress.PhotoFailed -> {
@@ -239,7 +242,7 @@ class TowerInfoViewModel @Inject constructor(
                 }
             }
         }
-        return photoUrls
+        return Pair(photoUrls, uploadedPaths)
     }
 
     // ── Submit ────────────────────────────────────────────────────────────
@@ -254,8 +257,9 @@ class TowerInfoViewModel @Inject constructor(
             val photosToUpload = buildTowerPhotoList(s, recordId)
 
             var photoUrls = emptyMap<String, String>()
+            var uploadedPaths = emptySet<String>()
             if (photosToUpload.isNotEmpty()) {
-                photoUrls = collectPhotoUploads(
+                val result = collectPhotoUploads(
                     photosToUpload = photosToUpload,
                     onStarted = {
                         _uiState.update { it.copy(
@@ -279,6 +283,8 @@ class TowerInfoViewModel @Inject constructor(
                         _uiState.update { it.copy(isUploadingPhotos = false) }
                     }
                 )
+                photoUrls = result.first
+                uploadedPaths = result.second
 
                 val allFailed = _uiState.value.uploadPhotoStatuses.values.all { it == PhotoUploadStatus.FAILED }
                 if (allFailed && photoUrls.isEmpty()) {
@@ -296,7 +302,7 @@ class TowerInfoViewModel @Inject constructor(
                 action = "submit"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false) }
+                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false, uploadedPhotoPaths = it.uploadedPhotoPaths + uploadedPaths) }
                     _events.emit(TowerInfoEvent.SubmitSuccess)
                 },
                 onFailure = { e ->
@@ -318,8 +324,9 @@ class TowerInfoViewModel @Inject constructor(
             val photosToUpload = buildTowerPhotoList(s, recordId)
 
             var photoUrls = emptyMap<String, String>()
+            var uploadedPaths = emptySet<String>()
             if (photosToUpload.isNotEmpty()) {
-                photoUrls = collectPhotoUploads(
+                val result = collectPhotoUploads(
                     photosToUpload = photosToUpload,
                     onStarted = {
                         _uiState.update { it.copy(
@@ -343,6 +350,8 @@ class TowerInfoViewModel @Inject constructor(
                         _uiState.update { it.copy(isUploadingPhotos = false) }
                     }
                 )
+                photoUrls = result.first
+                uploadedPaths = result.second
 
                 val allFailed = _uiState.value.uploadPhotoStatuses.values.all { it == PhotoUploadStatus.FAILED }
                 if (allFailed && photoUrls.isEmpty()) {
@@ -360,7 +369,7 @@ class TowerInfoViewModel @Inject constructor(
                 action = "save"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false) }
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false, uploadedPhotoPaths = it.uploadedPhotoPaths + uploadedPaths) }
                     _events.emit(TowerInfoEvent.SaveDraftSuccess)
                 },
                 onFailure = { e ->

@@ -100,7 +100,9 @@ data class GroundEquipmentUiState(
     val uploadTotal: Int = 0,
     val uploadCurrent: Int = 0,
     val uploadCurrentName: String = "",
-    val uploadPhotoStatuses: Map<String, PhotoUploadStatus> = emptyMap()  // fieldName → status
+    val uploadPhotoStatuses: Map<String, PhotoUploadStatus> = emptyMap(),  // fieldName → status
+    /** Local paths of photos that have been successfully uploaded to the server. */
+    val uploadedPhotoPaths: Set<String> = emptySet()
 )
 
 enum class PhotoUploadStatus {
@@ -300,7 +302,7 @@ class GroundEquipmentViewModel @Inject constructor(
             s.redundantPhotoPaths.forEachIndexed { idx, p -> add(PhotoToUpload(p, "ground", "redundant_photo_$idx", recordId)) }
         }
 
-    /** Collect photo upload flow, update UI state, return map of fieldName → serverUrl */
+    /** Collect photo upload flow, update UI state, return Pair(photoUrls, uploadedPaths) */
     private suspend fun collectPhotoUploads(
         photosToUpload: List<PhotoToUpload>,
         onStarted: () -> Unit,
@@ -308,11 +310,12 @@ class GroundEquipmentViewModel @Inject constructor(
         onPhotoDone: (String) -> Unit,
         onPhotoFailed: (String) -> Unit,
         onDone: () -> Unit
-    ): Map<String, String> {
-        if (photosToUpload.isEmpty()) return emptyMap()
+    ): Pair<Map<String, String>, Set<String>> {
+        if (photosToUpload.isEmpty()) return Pair(emptyMap(), emptySet())
 
         onStarted()
         var photoUrls = emptyMap<String, String>()
+        val uploadedPaths = mutableSetOf<String>()
 
         auditRepository.uploadPhotos(siteId, photosToUpload).collect { progress ->
             when (progress) {
@@ -322,6 +325,9 @@ class GroundEquipmentViewModel @Inject constructor(
                 }
                 is UploadProgress.PhotoDone -> {
                     photoUrls = photoUrls + (progress.fieldName to progress.serverUrl)
+                    // Track successful local paths
+                    val local = photosToUpload.find { it.fieldName == progress.fieldName }?.localPath
+                    local?.let { uploadedPaths.add(it) }
                     onPhotoDone(progress.fieldName)
                 }
                 is UploadProgress.PhotoFailed -> {
@@ -329,11 +335,17 @@ class GroundEquipmentViewModel @Inject constructor(
                 }
                 is UploadProgress.Done -> {
                     photoUrls = progress.photoUrls
+                    // Also add any successful uploads that weren't caught above
+                    uploadedPaths.addAll(
+                        photosToUpload
+                            .filter { pt -> progress.photoUrls.containsKey(pt.fieldName) }
+                            .map { it.localPath }
+                    )
                     onDone()
                 }
             }
         }
-        return photoUrls
+        return Pair(photoUrls, uploadedPaths)
     }
 
     // ── Submit ────────────────────────────────────────────────────────────────
@@ -349,8 +361,9 @@ class GroundEquipmentViewModel @Inject constructor(
 
             // Upload photos
             var photoUrls = emptyMap<String, String>()
+            var uploadedPaths = emptySet<String>()
             if (photosToUpload.isNotEmpty()) {
-                photoUrls = collectPhotoUploads(
+                val result = collectPhotoUploads(
                     photosToUpload = photosToUpload,
                     onStarted = {
                         _uiState.update { it.copy(
@@ -378,6 +391,8 @@ class GroundEquipmentViewModel @Inject constructor(
                         _uiState.update { it.copy(isUploadingPhotos = false) }
                     }
                 )
+                photoUrls = result.first
+                uploadedPaths = result.second
 
                 val allFailed = _uiState.value.uploadPhotoStatuses.values.all { it == PhotoUploadStatus.FAILED }
                 if (allFailed && photoUrls.isEmpty()) {
@@ -396,7 +411,7 @@ class GroundEquipmentViewModel @Inject constructor(
                 action = "submit"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false) }
+                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false, uploadedPhotoPaths = it.uploadedPhotoPaths + uploadedPaths) }
                     _events.emit(GroundEquipmentEvent.SubmitSuccess)
                 },
                 onFailure = { e ->
@@ -419,8 +434,9 @@ class GroundEquipmentViewModel @Inject constructor(
 
             // Upload photos
             var photoUrls = emptyMap<String, String>()
+            var uploadedPaths = emptySet<String>()
             if (photosToUpload.isNotEmpty()) {
-                photoUrls = collectPhotoUploads(
+                val result = collectPhotoUploads(
                     photosToUpload = photosToUpload,
                     onStarted = {
                         _uiState.update { it.copy(
@@ -448,6 +464,8 @@ class GroundEquipmentViewModel @Inject constructor(
                         _uiState.update { it.copy(isUploadingPhotos = false) }
                     }
                 )
+                photoUrls = result.first
+                uploadedPaths = result.second
 
                 val allFailed = _uiState.value.uploadPhotoStatuses.values.all { it == PhotoUploadStatus.FAILED }
                 if (allFailed && photoUrls.isEmpty()) {
@@ -455,6 +473,9 @@ class GroundEquipmentViewModel @Inject constructor(
                     return@launch
                 }
             }
+
+            // Track successfully uploaded paths so thumbnails show the clear badge
+            val newUploadedPaths = s.uploadedPhotoPaths + uploadedPaths
 
             // Save with server photo URLs
             val payload = buildPayload(s, recordId, photoUrls)
@@ -466,11 +487,11 @@ class GroundEquipmentViewModel @Inject constructor(
                 action = "save"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false) }
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false, uploadedPhotoPaths = newUploadedPaths) }
                     _events.emit(GroundEquipmentEvent.SaveDraftSuccess)
                 },
                 onFailure = { e ->
-                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false, submitError = e.message ?: "Save draft failed") }
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false, uploadedPhotoPaths = newUploadedPaths, submitError = e.message ?: "Save draft failed") }
                 }
             )
         }

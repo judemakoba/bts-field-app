@@ -4,9 +4,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,14 +20,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.layout.ContentScale
 import com.telco.btsfieldapp.domain.model.AntennaEntry
 import com.telco.btsfieldapp.domain.model.RruEntry
+import com.telco.btsfieldapp.ui.components.PhotoViewerDialog
 import com.telco.btsfieldapp.ui.theme.*
 import kotlinx.coroutines.flow.collectLatest
+import java.io.File
 
 private val SECTION_COLORS = listOf(
     Color(0xFF3B82F6), // blue  — Antenna
@@ -50,6 +59,7 @@ fun TowerInfoScreen(
 
     // Track which entry+field is waiting for a camera photo
     var pendingPhotoKey by remember { mutableStateOf<String?>(null) }
+    var viewerPhoto by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collectLatest { event ->
@@ -63,7 +73,8 @@ fun TowerInfoScreen(
         uiState.submitError?.let { snackbarHostState.showSnackbar(it) }
     }
 
-    Scaffold(
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Tower Equipment Scope", fontWeight = FontWeight.Bold) },
@@ -172,11 +183,16 @@ fun TowerInfoScreen(
                     isLast = uiState.antennas.size == 1,
                     siteName = uiState.siteName,
                     locationSummary = uiState.locationSummary,
+                    uploadedPhotoPaths = uiState.uploadedPhotoPaths,
                     onCapturePhoto = { entryId, photoType, siteName, locationSummary ->
                         onCapturePhoto(uiState.siteId, siteName, locationSummary, "tower_ant_${entryId}_$photoType")
                     },
                     onPhotoReceived = { entryId, photoType, path ->
                         viewModel.onAntennaPhoto(entryId, photoType, path)
+                    },
+                    onPhotoView = { path -> viewerPhoto = path },
+                    onPhotoDelete = { entryId, photoType ->
+                        viewModel.onAntennaPhoto(entryId, photoType, "")
                     },
                     onEquipmentTypeChange = { viewModel.onAntennaEquipmentType(antenna.id, it) },
                     onManufacturerChange = { viewModel.onAntennaManufacturer(antenna.id, it) },
@@ -236,11 +252,16 @@ fun TowerInfoScreen(
                     isLast = uiState.rrus.size == 1,
                     siteName = uiState.siteName,
                     locationSummary = uiState.locationSummary,
+                    uploadedPhotoPaths = uiState.uploadedPhotoPaths,
                     onCapturePhoto = { entryId, photoType, siteName, locationSummary ->
                         onCapturePhoto(uiState.siteId, siteName, locationSummary, "tower_rru_${entryId}_$photoType")
                     },
                     onPhotoReceived = { entryId, photoType, path ->
                         viewModel.onRruPhoto(entryId, photoType, path)
+                    },
+                    onPhotoView = { path -> viewerPhoto = path },
+                    onPhotoDelete = { entryId, photoType ->
+                        viewModel.onRruPhoto(entryId, photoType, "")
                     },
                     onEquipmentTypeChange = { viewModel.onRruEquipmentType(rru.id, it) },
                     onManufacturerChange = { viewModel.onRruManufacturer(rru.id, it) },
@@ -272,6 +293,54 @@ fun TowerInfoScreen(
             item { Spacer(Modifier.height(80.dp)) }
         }
     }
+
+    // Photo viewer dialog
+    viewerPhoto?.let { path ->
+        PhotoViewerDialog(
+            photoPath = path,
+            onDismiss = { viewerPhoto = null },
+            onDelete = {
+                // Find and clear from the right antenna or RRU entry
+                val antIdx = uiState.antennas.indexOfFirst { a ->
+                    a.modelPlatePhoto == path || a.portsPhoto == path ||
+                    a.dimensionsPhoto1 == path || a.dimensionsPhoto2 == path || a.dimensionsPhoto3 == path ||
+                    a.azimuthPhoto == path || a.heightPhoto == path
+                }
+                if (antIdx >= 0) {
+                    val a = uiState.antennas[antIdx]
+                    val photoType = when (path) {
+                        a.modelPlatePhoto -> "model_plate"
+                        a.portsPhoto -> "ports"
+                        a.dimensionsPhoto1 -> "dim1"
+                        a.dimensionsPhoto2 -> "dim2"
+                        a.dimensionsPhoto3 -> "dim3"
+                        a.azimuthPhoto -> "azimuth"
+                        a.heightPhoto -> "height"
+                        else -> return@PhotoViewerDialog
+                    }
+                    viewModel.onAntennaPhoto(a.id, photoType, "")
+                } else {
+                    val rruIdx = uiState.rrus.indexOfFirst { r ->
+                        r.modelPlatePhoto == path ||
+                        r.dimensionsPhoto1 == path || r.dimensionsPhoto2 == path || r.dimensionsPhoto3 == path
+                    }
+                    if (rruIdx >= 0) {
+                        val r = uiState.rrus[rruIdx]
+                        val photoType = when (path) {
+                            r.modelPlatePhoto -> "model_plate"
+                            r.dimensionsPhoto1 -> "dim1"
+                            r.dimensionsPhoto2 -> "dim2"
+                            r.dimensionsPhoto3 -> "dim3"
+                            else -> return@PhotoViewerDialog
+                        }
+                        viewModel.onRruPhoto(r.id, photoType, "")
+                    }
+                }
+                viewerPhoto = null
+            }
+        )
+    }
+    } // end Box
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -284,8 +353,11 @@ private fun AntennaEntryCard(
     isLast: Boolean,
     siteName: String,
     locationSummary: String,
+    uploadedPhotoPaths: Set<String>,
     onCapturePhoto: (String, String, String, String) -> Unit,
     onPhotoReceived: (String, String, String) -> Unit,
+    onPhotoView: (String) -> Unit,
+    onPhotoDelete: (String, String) -> Unit,
     onEquipmentTypeChange: (String) -> Unit,
     onManufacturerChange: (String) -> Unit,
     onModelChange: (String) -> Unit,
@@ -442,17 +514,23 @@ private fun AntennaEntryCard(
 
             // Model plate + ports row
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PhotoButton(
+                TowerPhotoThumbnail(
                     label = "Model Plate",
-                    hasPhoto = antenna.modelPlatePhoto != null,
-                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_model_plate") },
+                    photoPath = antenna.modelPlatePhoto,
+                    isUploaded = antenna.modelPlatePhoto in uploadedPhotoPaths,
+                    onCapture = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_model_plate") },
+                    onRemove = { onPhotoDelete(antenna.id, "model_plate") },
+                    onView = { antenna.modelPlatePhoto?.let { onPhotoView(it) } },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
-                PhotoButton(
+                TowerPhotoThumbnail(
                     label = "Ports",
-                    hasPhoto = antenna.portsPhoto != null,
-                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_ports") },
+                    photoPath = antenna.portsPhoto,
+                    isUploaded = antenna.portsPhoto in uploadedPhotoPaths,
+                    onCapture = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_ports") },
+                    onRemove = { onPhotoDelete(antenna.id, "ports") },
+                    onView = { antenna.portsPhoto?.let { onPhotoView(it) } },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
@@ -463,24 +541,33 @@ private fun AntennaEntryCard(
             RowTitle("Antenna Dimensions (3 Photos)", SECTION_COLORS[0], small = true)
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PhotoButton(
+                TowerPhotoThumbnail(
                     label = "Dim 1",
-                    hasPhoto = antenna.dimensionsPhoto1 != null,
-                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_dim1") },
+                    photoPath = antenna.dimensionsPhoto1,
+                    isUploaded = antenna.dimensionsPhoto1 in uploadedPhotoPaths,
+                    onCapture = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_dim1") },
+                    onRemove = { onPhotoDelete(antenna.id, "dim1") },
+                    onView = { antenna.dimensionsPhoto1?.let { onPhotoView(it) } },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
-                PhotoButton(
+                TowerPhotoThumbnail(
                     label = "Dim 2",
-                    hasPhoto = antenna.dimensionsPhoto2 != null,
-                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_dim2") },
+                    photoPath = antenna.dimensionsPhoto2,
+                    isUploaded = antenna.dimensionsPhoto2 in uploadedPhotoPaths,
+                    onCapture = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_dim2") },
+                    onRemove = { onPhotoDelete(antenna.id, "dim2") },
+                    onView = { antenna.dimensionsPhoto2?.let { onPhotoView(it) } },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
-                PhotoButton(
+                TowerPhotoThumbnail(
                     label = "Dim 3",
-                    hasPhoto = antenna.dimensionsPhoto3 != null,
-                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_dim3") },
+                    photoPath = antenna.dimensionsPhoto3,
+                    isUploaded = antenna.dimensionsPhoto3 in uploadedPhotoPaths,
+                    onCapture = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_dim3") },
+                    onRemove = { onPhotoDelete(antenna.id, "dim3") },
+                    onView = { antenna.dimensionsPhoto3?.let { onPhotoView(it) } },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
@@ -488,17 +575,23 @@ private fun AntennaEntryCard(
             Spacer(Modifier.height(8.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PhotoButton(
+                TowerPhotoThumbnail(
                     label = "Azimuth",
-                    hasPhoto = antenna.azimuthPhoto != null,
-                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_azimuth") },
+                    photoPath = antenna.azimuthPhoto,
+                    isUploaded = antenna.azimuthPhoto in uploadedPhotoPaths,
+                    onCapture = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_azimuth") },
+                    onRemove = { onPhotoDelete(antenna.id, "azimuth") },
+                    onView = { antenna.azimuthPhoto?.let { onPhotoView(it) } },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
-                PhotoButton(
+                TowerPhotoThumbnail(
                     label = "Height",
-                    hasPhoto = antenna.heightPhoto != null,
-                    onClick = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_height") },
+                    photoPath = antenna.heightPhoto,
+                    isUploaded = antenna.heightPhoto in uploadedPhotoPaths,
+                    onCapture = { onCapturePhoto(antenna.id, siteName, locationSummary, "tower_ant_${antenna.id}_height") },
+                    onRemove = { onPhotoDelete(antenna.id, "height") },
+                    onView = { antenna.heightPhoto?.let { onPhotoView(it) } },
                     color = SECTION_COLORS[0],
                     modifier = Modifier.weight(1f)
                 )
@@ -517,8 +610,11 @@ private fun RruEntryCard(
     isLast: Boolean,
     siteName: String,
     locationSummary: String,
+    uploadedPhotoPaths: Set<String>,
     onCapturePhoto: (String, String, String, String) -> Unit,
     onPhotoReceived: (String, String, String) -> Unit,
+    onPhotoView: (String) -> Unit,
+    onPhotoDelete: (String, String) -> Unit,
     onEquipmentTypeChange: (String) -> Unit,
     onManufacturerChange: (String) -> Unit,
     onModelChange: (String) -> Unit,
@@ -648,10 +744,13 @@ private fun RruEntryCard(
             RowTitle("Photos", SECTION_COLORS[1])
             Spacer(Modifier.height(6.dp))
 
-            PhotoButton(
+            TowerPhotoThumbnail(
                 label = "Model Plate",
-                hasPhoto = rru.modelPlatePhoto != null,
-                onClick = { onCapturePhoto(rru.id, siteName, locationSummary, "tower_rru_${rru.id}_model_plate") },
+                photoPath = rru.modelPlatePhoto,
+                isUploaded = rru.modelPlatePhoto in uploadedPhotoPaths,
+                onCapture = { onCapturePhoto(rru.id, siteName, locationSummary, "tower_rru_${rru.id}_model_plate") },
+                onRemove = { onPhotoDelete(rru.id, "model_plate") },
+                onView = { rru.modelPlatePhoto?.let { onPhotoView(it) } },
                 color = SECTION_COLORS[1],
                 modifier = Modifier.fillMaxWidth()
             )
@@ -660,24 +759,33 @@ private fun RruEntryCard(
             RowTitle("RRU Dimensions (3 Photos)", SECTION_COLORS[1], small = true)
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PhotoButton(
+                TowerPhotoThumbnail(
                     label = "Dim 1",
-                    hasPhoto = rru.dimensionsPhoto1 != null,
-                    onClick = { onCapturePhoto(rru.id, siteName, locationSummary, "tower_rru_${rru.id}_dim1") },
+                    photoPath = rru.dimensionsPhoto1,
+                    isUploaded = rru.dimensionsPhoto1 in uploadedPhotoPaths,
+                    onCapture = { onCapturePhoto(rru.id, siteName, locationSummary, "tower_rru_${rru.id}_dim1") },
+                    onRemove = { onPhotoDelete(rru.id, "dim1") },
+                    onView = { rru.dimensionsPhoto1?.let { onPhotoView(it) } },
                     color = SECTION_COLORS[1],
                     modifier = Modifier.weight(1f)
                 )
-                PhotoButton(
+                TowerPhotoThumbnail(
                     label = "Dim 2",
-                    hasPhoto = rru.dimensionsPhoto2 != null,
-                    onClick = { onCapturePhoto(rru.id, siteName, locationSummary, "tower_rru_${rru.id}_dim2") },
+                    photoPath = rru.dimensionsPhoto2,
+                    isUploaded = rru.dimensionsPhoto2 in uploadedPhotoPaths,
+                    onCapture = { onCapturePhoto(rru.id, siteName, locationSummary, "tower_rru_${rru.id}_dim2") },
+                    onRemove = { onPhotoDelete(rru.id, "dim2") },
+                    onView = { rru.dimensionsPhoto2?.let { onPhotoView(it) } },
                     color = SECTION_COLORS[1],
                     modifier = Modifier.weight(1f)
                 )
-                PhotoButton(
+                TowerPhotoThumbnail(
                     label = "Dim 3",
-                    hasPhoto = rru.dimensionsPhoto3 != null,
-                    onClick = { onCapturePhoto(rru.id, siteName, locationSummary, "tower_rru_${rru.id}_dim3") },
+                    photoPath = rru.dimensionsPhoto3,
+                    isUploaded = rru.dimensionsPhoto3 in uploadedPhotoPaths,
+                    onCapture = { onCapturePhoto(rru.id, siteName, locationSummary, "tower_rru_${rru.id}_dim3") },
+                    onRemove = { onPhotoDelete(rru.id, "dim3") },
+                    onView = { rru.dimensionsPhoto3?.let { onPhotoView(it) } },
                     color = SECTION_COLORS[1],
                     modifier = Modifier.weight(1f)
                 )
@@ -875,32 +983,94 @@ private fun FormReadOnlyField(label: String, value: String) {
 }
 
 @Composable
-private fun PhotoButton(
+private fun TowerPhotoThumbnail(
     label: String,
-    hasPhoto: Boolean,
-    onClick: () -> Unit,
+    photoPath: String?,
+    isUploaded: Boolean,
+    onCapture: () -> Unit,
+    onRemove: () -> Unit,
+    onView: () -> Unit,
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier.height(52.dp),
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.5.dp, color.copy(alpha = if (hasPhoto) 0.8f else 0.5f)),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = if (hasPhoto) color.copy(alpha = 0.12f) else Color.Transparent,
-            contentColor = color
-        )
-    ) {
-        Icon(
-            if (hasPhoto) Icons.Default.CheckCircle else Icons.Default.AddAPhoto,
-            null,
-            modifier = Modifier.size(18.dp)
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            text = if (hasPhoto) "$label ✓" else label,
-            style = MaterialTheme.typography.labelMedium
-        )
+    val context = LocalContext.current
+    val file = remember(photoPath) { photoPath?.let { File(it) } }
+
+    if (photoPath != null && file != null && file.exists()) {
+        // Show thumbnail with amber border/badge if not uploaded
+        Box(
+            modifier = modifier
+                .height(52.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(
+                    width = 1.5.dp,
+                    color = if (isUploaded) color else Color(0xFFF59E0B),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .clickable { onView() }
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(file)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = label,
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop
+            )
+
+            // Upload badge
+            if (!isUploaded) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(4.dp)
+                        .size(18.dp)
+                        .background(Color(0xFFF59E0B), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("!", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // Label overlay at bottom
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .padding(vertical = 2.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(label, color = Color.White, style = MaterialTheme.typography.labelSmall)
+            }
+
+            // Remove button
+            IconButton(
+                onClick = onRemove,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(22.dp)
+                    .background(ErrorColor, CircleShape)
+            ) {
+                Icon(Icons.Default.Close, "Remove", tint = Color.White, modifier = Modifier.size(12.dp))
+            }
+        }
+    } else {
+        // No photo — show capture button
+        OutlinedButton(
+            onClick = onCapture,
+            modifier = modifier.height(52.dp),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.5.dp, color.copy(alpha = 0.5f)),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.Transparent,
+                contentColor = color
+            )
+        ) {
+            Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium)
+        }
     }
 }

@@ -109,7 +109,8 @@ data class DcdbInfoUiState(
     val uploadTotal: Int = 0,
     val uploadCurrent: Int = 0,
     val uploadCurrentName: String = "",
-    val uploadPhotoStatuses: Map<String, PhotoUploadStatus> = emptyMap()
+    val uploadPhotoStatuses: Map<String, PhotoUploadStatus> = emptyMap(),
+    val uploadedPhotoPaths: Set<String> = emptySet()
 )
 
 sealed class DcdbInfoEvent {
@@ -360,11 +361,12 @@ class DcdbInfoViewModel @Inject constructor(
         onPhotoDone: (String) -> Unit,
         onPhotoFailed: (String) -> Unit,
         onDone: () -> Unit
-    ): Map<String, String> {
-        if (photosToUpload.isEmpty()) return emptyMap()
+    ): Pair<Map<String, String>, Set<String>> {
+        if (photosToUpload.isEmpty()) return Pair(emptyMap(), emptySet())
 
         onStarted()
         var photoUrls = emptyMap<String, String>()
+        val uploadedPaths = mutableSetOf<String>()
 
         auditRepository.uploadPhotos(siteId, photosToUpload).collect { progress ->
             when (progress) {
@@ -374,6 +376,7 @@ class DcdbInfoViewModel @Inject constructor(
                 }
                 is UploadProgress.PhotoDone -> {
                     photoUrls = photoUrls + (progress.fieldName to progress.serverUrl)
+                    uploadedPaths.add(progress.localPath)
                     onPhotoDone(progress.fieldName)
                 }
                 is UploadProgress.PhotoFailed -> {
@@ -385,7 +388,7 @@ class DcdbInfoViewModel @Inject constructor(
                 }
             }
         }
-        return photoUrls
+        return Pair(photoUrls, uploadedPaths)
     }
 
     // ── Submit ────────────────────────────────────────────────────────────
@@ -400,8 +403,9 @@ class DcdbInfoViewModel @Inject constructor(
             val photosToUpload = buildDcdbPhotoList(s, recordId)
 
             var photoUrls = emptyMap<String, String>()
+            var uploadedPaths = emptySet<String>()
             if (photosToUpload.isNotEmpty()) {
-                photoUrls = collectPhotoUploads(
+                val result = collectPhotoUploads(
                     photosToUpload = photosToUpload,
                     onStarted = {
                         _uiState.update { it.copy(
@@ -425,6 +429,8 @@ class DcdbInfoViewModel @Inject constructor(
                         _uiState.update { it.copy(isUploadingPhotos = false) }
                     }
                 )
+                photoUrls = result.first
+                uploadedPaths = result.second
 
                 val allFailed = _uiState.value.uploadPhotoStatuses.values.all { it == PhotoUploadStatus.FAILED }
                 if (allFailed && photoUrls.isEmpty()) {
@@ -442,7 +448,7 @@ class DcdbInfoViewModel @Inject constructor(
                 action = "submit"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false) }
+                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false, uploadedPhotoPaths = it.uploadedPhotoPaths + uploadedPaths) }
                     _events.emit(DcdbInfoEvent.SubmitSuccess)
                 },
                 onFailure = { e ->
@@ -464,8 +470,9 @@ class DcdbInfoViewModel @Inject constructor(
             val photosToUpload = buildDcdbPhotoList(s, recordId)
 
             var photoUrls = emptyMap<String, String>()
+            var uploadedPaths = emptySet<String>()
             if (photosToUpload.isNotEmpty()) {
-                photoUrls = collectPhotoUploads(
+                val result = collectPhotoUploads(
                     photosToUpload = photosToUpload,
                     onStarted = {
                         _uiState.update { it.copy(
@@ -489,6 +496,8 @@ class DcdbInfoViewModel @Inject constructor(
                         _uiState.update { it.copy(isUploadingPhotos = false) }
                     }
                 )
+                photoUrls = result.first
+                uploadedPaths = result.second
 
                 val allFailed = _uiState.value.uploadPhotoStatuses.values.all { it == PhotoUploadStatus.FAILED }
                 if (allFailed && photoUrls.isEmpty()) {
@@ -506,7 +515,7 @@ class DcdbInfoViewModel @Inject constructor(
                 action = "save"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false) }
+                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false, uploadedPhotoPaths = it.uploadedPhotoPaths + uploadedPaths) }
                     _events.emit(DcdbInfoEvent.SaveDraftSuccess)
                 },
                 onFailure = { e ->
