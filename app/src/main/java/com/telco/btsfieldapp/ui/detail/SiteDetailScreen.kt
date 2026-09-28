@@ -301,6 +301,7 @@ private fun InfoRow(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
+            color = OnSurfaceLight,
             modifier = Modifier.weight(1f)
         )
     }

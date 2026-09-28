@@ -469,6 +469,8 @@ private fun SelectField(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = PrimaryCoral,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    focusedTextColor = OnSurfaceLight,
+                    unfocusedTextColor = OnSurfaceLight,
                     focusedContainerColor = PrimaryCoral.copy(alpha = 0.03f)
                 )
             )
@@ -520,6 +522,8 @@ private fun TextFieldWithUnit(
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = PrimaryCoral,
             focusedLabelColor = PrimaryCoral,
+            focusedTextColor = OnSurfaceLight,
+            unfocusedTextColor = OnSurfaceLight,
             focusedContainerColor = PrimaryCoral.copy(alpha = 0.03f)
         )
     )
@@ -542,6 +546,8 @@ private fun NotesField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = PrimaryCoral,
             focusedLabelColor = PrimaryCoral,
+            focusedTextColor = OnSurfaceLight,
+            unfocusedTextColor = OnSurfaceLight,
             focusedContainerColor = PrimaryCoral.copy(alpha = 0.03f)
         )
     )

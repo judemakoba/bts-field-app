@@ -196,6 +196,8 @@ fun LoginScreen(
                             unfocusedBorderColor = OnSurfaceVariantLight.copy(alpha = 0.3f),
                             focusedLabelColor = PrimaryCoral,
                             unfocusedLabelColor = OnSurfaceVariantLight,
+                            focusedTextColor = OnSurfaceLight,
+                            unfocusedTextColor = OnSurfaceLight,
                             cursorColor = PrimaryCoral,
                             focusedContainerColor = SurfaceLight,
                             unfocusedContainerColor = SurfaceLight
@@ -244,6 +246,8 @@ fun LoginScreen(
                             unfocusedBorderColor = OnSurfaceVariantLight.copy(alpha = 0.3f),
                             focusedLabelColor = PrimaryCoral,
                             unfocusedLabelColor = OnSurfaceVariantLight,
+                            focusedTextColor = OnSurfaceLight,
+                            unfocusedTextColor = OnSurfaceLight,
                             cursorColor = PrimaryCoral,
                             focusedContainerColor = SurfaceLight,
                             unfocusedContainerColor = SurfaceLight

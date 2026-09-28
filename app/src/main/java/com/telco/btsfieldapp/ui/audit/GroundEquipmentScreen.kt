@@ -822,6 +822,8 @@ private fun FormTextField(
             unfocusedBorderColor = Color(0xFFE0D6CC),
             focusedLabelColor = PrimaryCoral,
             unfocusedLabelColor = OnSurfaceVariantLight,
+            focusedTextColor = OnSurfaceLight,
+            unfocusedTextColor = OnSurfaceLight,
             cursorColor = PrimaryCoral,
             focusedContainerColor = Color.White,
             unfocusedContainerColor = Color.White
@@ -884,7 +886,9 @@ private fun FormDropdown(
                 focusedBorderColor = PrimaryCoral,
                 unfocusedBorderColor = Color(0xFFE0D6CC),
                 focusedLabelColor = PrimaryCoral,
-                unfocusedLabelColor = OnSurfaceVariantLight
+                unfocusedLabelColor = OnSurfaceVariantLight,
+                focusedTextColor = OnSurfaceLight,
+                unfocusedTextColor = OnSurfaceLight
             )
         )
         ExposedDropdownMenu(

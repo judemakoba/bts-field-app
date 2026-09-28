@@ -739,6 +739,8 @@ private fun FormTextField(
             unfocusedBorderColor = PrimaryCoralLight,
             focusedLabelColor = PrimaryCoral,
             unfocusedLabelColor = OnSurfaceVariantLight,
+            focusedTextColor = OnSurfaceLight,
+            unfocusedTextColor = OnSurfaceLight,
             cursorColor = PrimaryCoral,
             focusedContainerColor = SurfaceLight,
             unfocusedContainerColor = SurfaceLight
