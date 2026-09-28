@@ -6,6 +6,8 @@ import com.telco.btsfieldapp.data.local.entity.AuditEntity
 import com.telco.btsfieldapp.data.local.entity.PendingSyncEntity
 import com.telco.btsfieldapp.data.remote.ApiService
 import com.telco.btsfieldapp.data.remote.AuditSyncRequest
+import com.telco.btsfieldapp.data.remote.PhotoDto
+import com.telco.btsfieldapp.data.remote.RecordResponseDto
 import com.telco.btsfieldapp.data.remote.RejectedReportsResponse
 import com.telco.btsfieldapp.domain.model.AuditRecord
 import com.telco.btsfieldapp.domain.model.DcdbRecord
@@ -206,6 +208,32 @@ class AuditRepository @Inject constructor(
 
     fun getAllAudits(): Flow<List<AuditRecord>> =
         auditDao.getAllAudits().map { entities -> entities.map { it.toDomain() } }
+
+    /**
+     * Fetch photos for a specific audit record.
+     * Returns photos with recordId and fieldName metadata.
+     */
+    suspend fun fetchPhotosForRecord(siteId: String, recordId: String): Result<List<PhotoDto>> {
+        return try {
+            val response = api.getAuditPhotos(siteId, recordId)
+            Result.success(response.photos ?: emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Fetch a single audit record by type and ID.
+     * Returns the record data as a Map for flexible field access.
+     */
+    suspend fun fetchAuditRecord(type: String, id: String): Result<Map<String, Any>?> {
+        return try {
+            val response = api.getAuditRecord(type, id)
+            Result.success(response.record)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
 
 // ── API response → domain mappers ────────────────────────────────────────────────

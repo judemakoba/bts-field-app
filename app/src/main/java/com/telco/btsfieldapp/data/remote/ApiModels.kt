@@ -186,12 +186,38 @@ data class PhotoUploadResponse(
     val photo: PhotoInfo?
 )
 
+data class PhotoDto(
+    val id: String,
+    @SerializedName("siteId") val siteId: String,
+    val category: String?,
+    val recordId: String?,
+    val fieldName: String?,
+    val original: String?,
+    val thumbnail: String?,
+    val filename: String?,
+    val size: Long?,
+    @SerializedName("uploadedAt") val uploadedAt: String?
+)
+
+data class PhotosResponse(
+    val photos: List<PhotoDto>?,
+    val total: Int?
+)
+
+data class RecordResponseDto(
+    val record: Map<String, Any>?,
+    val type: String?,
+    val message: String?
+)
+
 data class PhotoInfo(
     val id: String?,
     val serverUrl: String?,
     val thumbnailUrl: String?,
     val filename: String?,
-    val size: Long?
+    val size: Long?,
+    val recordId: String? = null,
+    val fieldName: String? = null
 )
 
 // ── Generic API response ────────────────────────────────────────────────────────

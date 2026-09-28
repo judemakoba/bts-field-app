@@ -1,7 +1,9 @@
 package com.telco.btsfieldapp.ui.audit
 
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -37,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.telco.btsfieldapp.BuildConfig
 import com.telco.btsfieldapp.ui.components.PhotoViewerDialog
 import com.telco.btsfieldapp.ui.theme.*
 import kotlinx.coroutines.flow.collectLatest
@@ -147,7 +151,18 @@ fun GroundEquipmentScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ground Equipment", fontWeight = FontWeight.Bold) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Ground Equipment", fontWeight = FontWeight.Bold)
+                        if (uiState.isLoadingExisting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -262,7 +277,8 @@ fun GroundEquipmentScreen(
                         photos = uiState.siteNamePlatePhotoPath?.let { listOf(it) } ?: emptyList(),
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "site_name_plate") },
                         onRemovePhoto = { viewModel.onSiteNamePlatePhoto("") },
-                        maxPhotos = 1
+                        maxPhotos = 1,
+                        existingPhotos = uiState.existingPhotos.filter { it.fieldName == "site_name_plate" }
                     )
                 }
             }
@@ -392,7 +408,8 @@ fun GroundEquipmentScreen(
                         photos = uiState.sitePhotoPath?.let { listOf(it) } ?: emptyList(),
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "site_photo") },
                         onRemovePhoto = { viewModel.onSitePhoto("") },
-                        maxPhotos = 1
+                        maxPhotos = 1,
+                        existingPhotos = uiState.existingPhotos.filter { it.fieldName == "site_photo" }
                     )
                 }
             }
@@ -469,7 +486,8 @@ fun GroundEquipmentScreen(
                         photos = uiState.rruPhotoPaths,
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "rru_photo") },
                         onRemovePhoto = viewModel::removeRruPhoto,
-                        maxPhotos = 4
+                        maxPhotos = 4,
+                        existingPhotos = uiState.existingPhotos.filter { it.fieldName.startsWith("rru_photo") }
                     )
                     Spacer(Modifier.height(12.dp))
                     FormTextField(
@@ -492,7 +510,8 @@ fun GroundEquipmentScreen(
                         photos = uiState.cabinetPhotoPaths,
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "cabinet_photo") },
                         onRemovePhoto = viewModel::removeCabinetPhoto,
-                        maxPhotos = 20
+                        maxPhotos = 20,
+                        existingPhotos = uiState.existingPhotos.filter { it.fieldName.startsWith("cabinet_photo") }
                     )
                     Spacer(Modifier.height(12.dp))
                     FormYesNoRow(
@@ -520,7 +539,8 @@ fun GroundEquipmentScreen(
                         photos = uiState.cabinetDimensionPhotoPaths,
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "cabinet_dim") },
                         onRemovePhoto = viewModel::removeCabinetDimensionPhoto,
-                        maxPhotos = 3
+                        maxPhotos = 3,
+                        existingPhotos = uiState.existingPhotos.filter { it.fieldName.startsWith("cabinet_dim_photo") }
                     )
                     Spacer(Modifier.height(12.dp))
                     FormTextField(
@@ -550,7 +570,8 @@ fun GroundEquipmentScreen(
                         photos = uiState.nonActiveIduPhotoPaths,
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "nonactive_idu") },
                         onRemovePhoto = viewModel::removeNonActiveIduPhoto,
-                        maxPhotos = 5
+                        maxPhotos = 5,
+                        existingPhotos = uiState.existingPhotos.filter { it.fieldName.startsWith("non_active_idu_photo") }
                     )
                 }
             }
@@ -576,7 +597,8 @@ fun GroundEquipmentScreen(
                         photos = uiState.slabPhotoPaths,
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "slab_photo") },
                         onRemovePhoto = viewModel::removeSlabPhoto,
-                        maxPhotos = 3
+                        maxPhotos = 3,
+                        existingPhotos = uiState.existingPhotos.filter { it.fieldName.startsWith("slab_photo") }
                     )
                 }
             }
@@ -610,7 +632,8 @@ fun GroundEquipmentScreen(
                         photos = uiState.redundantPhotoPaths,
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "redundant_photo") },
                         onRemovePhoto = viewModel::removeRedundantPhoto,
-                        maxPhotos = 3
+                        maxPhotos = 3,
+                        existingPhotos = uiState.existingPhotos.filter { it.fieldName.startsWith("redundant_photo") }
                     )
                 }
             }
@@ -1015,6 +1038,82 @@ private fun FlowRow(
 // PHOTO CAPTURE ROW — DailyMe Warm Style
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Build full URL for a server-side photo path (e.g. "/uploads/..."). */
+private fun serverPhotoUrl(relativePath: String): String {
+    val base = BuildConfig.API_BASE.removeSuffix("/api").removeSuffix("/")
+    return if (relativePath.startsWith("http")) relativePath else "$base$relativePath"
+}
+
+@Composable
+private fun ExistingPhotoThumbnail(
+    photo: ExistingPhoto,
+    onDownload: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val fullUrl = remember(photo.serverUrl) { serverPhotoUrl(photo.serverUrl) }
+
+    Box(
+        modifier = Modifier
+            .size(80.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.5.dp, SuccessColor, RoundedCornerShape(12.dp))
+            .background(Color(0xFFF0FDF4)) // light green tint
+            .clickable {
+                // Open browser to download
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
+                    context.startActivity(intent)
+                } catch (_: Exception) {
+                    // Fallback: try to download directly
+                    onDownload(fullUrl)
+                }
+            }
+    ) {
+        AsyncImage(
+            model = fullUrl,
+            contentDescription = "Saved photo: ${photo.fieldName}",
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Crop
+        )
+
+        // "Saved" badge — green checkmark
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(4.dp)
+                .size(20.dp)
+                .background(SuccessColor, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = "Saved",
+                tint = Color.White,
+                modifier = Modifier.size(12.dp)
+            )
+        }
+
+        // Download hint on hover-like press
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(4.dp)
+                .size(18.dp)
+                .background(Color.Black.copy(alpha = 0.5f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.CloudDownload,
+                contentDescription = "Download",
+                tint = Color.White,
+                modifier = Modifier.size(10.dp)
+            )
+        }
+    }
+}
+
 @Composable
 private fun PhotoCaptureRow(
     label: String,
@@ -1022,7 +1121,9 @@ private fun PhotoCaptureRow(
     onAddPhoto: () -> Unit,
     onRemovePhoto: (String) -> Unit,
     maxPhotos: Int,
-    uploadedPhotoPaths: Set<String> = emptySet()
+    uploadedPhotoPaths: Set<String> = emptySet(),
+    /** Photos already saved on the server (shown as read-only thumbnails). */
+    existingPhotos: List<ExistingPhoto> = emptyList()
 ) {
     var viewerPhoto by remember { mutableStateOf<String?>(null) }
 
@@ -1036,17 +1137,30 @@ private fun PhotoCaptureRow(
                 Text(
                     text = label,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.SemiBold,
+                    color = OnSurfaceLight
                 )
                 Text(
-                    text = "${photos.size}/$maxPhotos",
+                    text = "${photos.size + existingPhotos.size}/$maxPhotos",
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (photos.size >= maxPhotos) PrimaryCoral else SuccessColor
+                    color = if (photos.size + existingPhotos.size >= maxPhotos) PrimaryCoral else SuccessColor
                 )
             }
             Spacer(Modifier.height(8.dp))
 
+            val rowContext = LocalContext.current
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Show existing (server) photos first
+                items(existingPhotos) { photo ->
+                    ExistingPhotoThumbnail(
+                        photo = photo,
+                        onDownload = { url ->
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                            rowContext.startActivity(intent)
+                        }
+                    )
+                }
+                // Then local (newly captured) photos
                 items(photos) { path ->
                     PhotoThumbnail(
                         path = path,
@@ -1084,7 +1198,6 @@ private fun PhotoThumbnail(
     onRemove: () -> Unit,
     onView: () -> Unit
 ) {
-    val context = LocalContext.current
     val file = remember(path) { java.io.File(path) }
 
     Box(

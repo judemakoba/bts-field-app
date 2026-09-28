@@ -17,6 +17,20 @@ interface ApiService {
         @Part photo: MultipartBody.Part
     ): PhotoUploadResponse
 
+    // ── Fetch photos for a specific record ───────────────────────────────────
+    @GET("audit/photos")
+    suspend fun getAuditPhotos(
+        @Query("siteId") siteId: String,
+        @Query("recordId") recordId: String
+    ): PhotosResponse
+
+    // ── Fetch a single record by type and ID ───────────────────────────────
+    @GET("audit/record/{type}/{id}")
+    suspend fun getAuditRecord(
+        @Path("type") type: String,
+        @Path("id") id: String
+    ): RecordResponseDto
+
     // ── Auth ────────────────────────────────────────────────────────────────
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): LoginResponse

@@ -102,8 +102,11 @@ fun SiteDetailScreen(
                         text = "Audit History",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = OnSurfaceLight,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                        color = Color.White,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(PrimaryCoral.copy(alpha = 0.9f))
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
                     )
                 }
 
@@ -416,6 +419,7 @@ private fun AuditSectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(Color(0xFF3D2E1E)) // warm dark background
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -438,7 +442,7 @@ private fun AuditSectionHeader(
             text = "$title Records",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
-            color = OnSurfaceLight
+            color = Color.White
         )
         Spacer(modifier = Modifier.width(8.dp))
         Surface(
@@ -462,7 +466,16 @@ private fun GroundRecordCard(record: GroundRecord) {
         icon = Icons.Default.Landscape,
         color = PrimaryCoral,
         title = "Ground",
-        subtitle = "${record.fenceCondition.ifEmpty { "—" }} | ${record.groundResistance.ifEmpty { "—" }}Ω",
+        subtitle = buildString {
+            val fence = record.fenceCondition.trim().ifEmpty { null }
+            val resistance = record.groundResistance.trim().ifEmpty { null }
+            when {
+                fence != null && resistance != null -> append("$fence | $resistance ohm")
+                fence != null -> append("Fence: $fence")
+                resistance != null -> append("Resistance: $resistance ohm")
+                else -> append("No data")
+            }
+        },
         notes = record.notes,
         date = record.createdAt
     )
@@ -474,7 +487,16 @@ private fun DcdbRecordCard(record: DcdbRecord) {
         icon = Icons.Default.ElectricalServices,
         color = PrimaryCoral,
         title = "DCDB",
-        subtitle = "${record.dcdbType.ifEmpty { "—" }} | ${record.dcdbCapacity.ifEmpty { "—" }}A",
+        subtitle = buildString {
+            val type = record.dcdbType.trim().ifEmpty { null }
+            val cap = record.dcdbCapacity.trim().ifEmpty { null }
+            when {
+                type != null && cap != null -> append("$type | ${cap}A")
+                type != null -> append("Type: $type")
+                cap != null -> append("Capacity: ${cap}A")
+                else -> append("No data")
+            }
+        },
         notes = record.notes,
         date = record.createdAt
     )
@@ -486,7 +508,16 @@ private fun TowerRecordCard(record: TowerRecord) {
         icon = Icons.Default.Architecture,
         color = PrimaryCoral,
         title = "Tower",
-        subtitle = "${record.towerType.ifEmpty { "—" }} | ${record.towerHeight.ifEmpty { "—" }}m",
+        subtitle = buildString {
+            val type = record.towerType.trim().ifEmpty { null }
+            val height = record.towerHeight.trim().ifEmpty { null }
+            when {
+                type != null && height != null -> append("$type | ${height}m")
+                type != null -> append("Type: $type")
+                height != null -> append("Height: ${height}m")
+                else -> append("No data")
+            }
+        },
         notes = record.notes,
         date = record.createdAt
     )

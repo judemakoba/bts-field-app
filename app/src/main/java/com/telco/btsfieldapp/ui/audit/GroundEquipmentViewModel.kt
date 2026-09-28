@@ -8,6 +8,7 @@ import com.telco.btsfieldapp.data.repository.AuthRepository
 import com.telco.btsfieldapp.data.repository.PhotoToUpload
 import com.telco.btsfieldapp.data.repository.SiteRepository
 import com.telco.btsfieldapp.data.repository.UploadProgress
+import com.telco.btsfieldapp.data.remote.PhotoDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -102,7 +103,22 @@ data class GroundEquipmentUiState(
     val uploadCurrentName: String = "",
     val uploadPhotoStatuses: Map<String, PhotoUploadStatus> = emptyMap(),  // fieldName → status
     /** Local paths of photos that have been successfully uploaded to the server. */
-    val uploadedPhotoPaths: Set<String> = emptySet()
+    val uploadedPhotoPaths: Set<String> = emptySet(),
+
+    // Existing data reconciliation
+    /** Server record ID if an existing record was loaded. */
+    val existingRecordId: String? = null,
+    /** Photos already on the server for this record. */
+    val existingPhotos: List<ExistingPhoto> = emptyList(),
+    /** Whether we're loading existing data. */
+    val isLoadingExisting: Boolean = false
+)
+
+/** A photo already uploaded to the server for an existing record. */
+data class ExistingPhoto(
+    val serverUrl: String,
+    val thumbnailUrl: String?,
+    val fieldName: String
 )
 
 enum class PhotoUploadStatus {
@@ -133,6 +149,7 @@ class GroundEquipmentViewModel @Inject constructor(
     init {
         autoFillFromAccount()
         loadSiteMetadata()
+        loadExistingData()
     }
 
     private fun loadSiteMetadata() {
@@ -165,6 +182,61 @@ class GroundEquipmentViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    /**
+     * Load the most recent ground record for this site + user from the server,
+     * then fetch its photos. Pre-fills form fields so engineers don't create
+     * duplicate entries. Photos are shown as downloadable thumbnails.
+     */
+    private fun loadExistingData() {
+        if (siteId.isBlank()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingExisting = true) }
+            try {
+                // Fetch the latest ground record for this site
+                val siteAudit = auditRepository.fetchSiteAudit(siteId).getOrNull()
+                val latestRecord = siteAudit?.groundRecords
+                    ?.filter { it.id.isNotBlank() }
+                    ?.maxByOrNull { it.createdAt }
+                    ?: siteAudit?.groundRecords?.firstOrNull { it.id.isNotBlank() }
+
+                if (latestRecord != null && latestRecord.id.isNotBlank()) {
+                    _uiState.update { s -> s.copy(existingRecordId = latestRecord.id) }
+                    populateFormFromRecord(latestRecord)
+
+                    // Fetch photos for this record
+                    val photos = auditRepository.fetchPhotosForRecord(siteId, latestRecord.id).getOrNull()
+                        ?: emptyList()
+                    // Backend stores field names with "_photo" suffix (e.g. "site_name_plate_photo",
+                    // "rru_photo_0_photo"). Strip it so bare names match what Android uses
+                    // in PhotoCaptureRow call sites (e.g. "site_name_plate", "rru_photo_0").
+                    val existingPhotos = photos.mapNotNull { dto ->
+                        val raw = dto.fieldName ?: return@mapNotNull null
+                        val bare = if (raw.endsWith("_photo"))
+                            raw.removeSuffix("_photo")
+                        else raw
+                        ExistingPhoto(
+                            serverUrl = dto.original ?: "",
+                            thumbnailUrl = dto.thumbnail,
+                            fieldName = bare
+                        )
+                    }
+                    _uiState.update { it.copy(existingPhotos = existingPhotos) }
+                }
+            } catch (_: Exception) {
+                // Silently fail — form still works with blank fields
+            } finally {
+                _uiState.update { it.copy(isLoadingExisting = false) }
+            }
+        }
+    }
+
+    /** Map server GroundRecord fields to UI state (only fields that exist in the backend schema). */
+    private fun populateFormFromRecord(record: com.telco.btsfieldapp.domain.model.GroundRecord) {
+        // Pre-fill remarks from notes if available
+        val remarks = record.notes.trim().takeIf { it.isNotBlank() && it != "-" }
+        _uiState.update { it.copy(overallRemarks = remarks ?: it.overallRemarks) }
     }
 
     // ── Section 0: Site Identification ────────────────────────────────────────
