@@ -2,9 +2,11 @@ package com.telco.btsfieldapp.ui.auth
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CellTower
 import androidx.compose.material.icons.filled.Lock
@@ -15,8 +17,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -26,9 +32,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.telco.btsfieldapp.ui.theme.PrimaryGreen
-import com.telco.btsfieldapp.ui.theme.PrimaryGreenDark
-import com.telco.btsfieldapp.ui.theme.PrimaryGreenLight
+import com.telco.btsfieldapp.ui.theme.*
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -52,62 +56,103 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(PrimaryGreenDark, PrimaryGreen, PrimaryGreenLight)
-                )
-            )
+            .background(MaterialTheme.colorScheme.background) // warm cream BackgroundLight
     ) {
+        // ── Decorative coral blob in top-right corner ──
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp)
+        ) {
+            // Main decorative circle - top right
+            Box(
+                modifier = Modifier
+                    .size(200.dp)
+                    .offset(x = 120.dp, y = (-60).dp)
+                    .background(
+                        color = PrimaryCoralLight.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(50)
+                    )
+            )
+            // Secondary smaller circle
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .offset(x = 260.dp, y = 20.dp)
+                    .background(
+                        color = PrimaryCoralLight.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(50)
+                    )
+            )
+        }
+
+        // ── Main scrollable content ──
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo / Icon
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = White),
-                modifier = Modifier.size(96.dp)
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // ── Logo circle with coral background ──
+            Surface(
+                modifier = Modifier
+                    .size(96.dp)
+                    .shadow(
+                        elevation = 12.dp,
+                        shape = RoundedCornerShape(50),
+                        ambientColor = PrimaryCoral.copy(alpha = 0.25f),
+                        spotColor = PrimaryCoral.copy(alpha = 0.25f)
+                    ),
+                shape = RoundedCornerShape(50),
+                color = PrimaryCoralLight
             ) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.CellTower,
                         contentDescription = null,
-                        modifier = Modifier.size(56.dp),
-                        tint = PrimaryGreen
+                        modifier = Modifier.size(52.dp),
+                        tint = Color.White
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // ── App title ──
             Text(
                 text = "BTS Site Audit",
                 style = MaterialTheme.typography.headlineLarge,
-                color = White,
+                color = OnSurfaceLight,
                 fontWeight = FontWeight.Bold
             )
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Field Engineer App",
                 style = MaterialTheme.typography.bodyLarge,
-                color = White.copy(alpha = 0.8f)
+                color = OnSurfaceVariantLight
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
-            // Login card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            // ── Login card with warm styling ──
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(
+                        elevation = 8.dp,
+                        shape = RoundedCornerShape(24.dp),
+                        ambientColor = Color(0x40000000),
+                        spotColor = Color(0x20000000)
+                    )
+                    .clip(RoundedCornerShape(24.dp)),
+                shape = RoundedCornerShape(24.dp),
+                color = SurfaceLight
             ) {
                 Column(
                     modifier = Modifier
@@ -119,17 +164,22 @@ fun LoginScreen(
                         text = "Sign In",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = OnSurfaceLight
                     )
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    // ── Email field ──
                     OutlinedTextField(
                         value = uiState.email,
                         onValueChange = viewModel::onEmailChange,
                         label = { Text("Email") },
-                        placeholder = { Text("engineer@telco.com") },
+                        placeholder = { Text("engineer@telco.com", color = OnSurfaceVariantLight.copy(alpha = 0.6f)) },
                         leadingIcon = {
-                            Icon(Icons.Default.Lock, contentDescription = null)
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = PrimaryCoral.copy(alpha = 0.7f)
+                            )
                         },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
@@ -140,27 +190,38 @@ fun LoginScreen(
                         ),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryGreen,
-                            focusedLabelColor = PrimaryGreen
+                            focusedBorderColor = PrimaryCoral,
+                            unfocusedBorderColor = OnSurfaceVariantLight.copy(alpha = 0.3f),
+                            focusedLabelColor = PrimaryCoral,
+                            unfocusedLabelColor = OnSurfaceVariantLight,
+                            cursorColor = PrimaryCoral,
+                            focusedContainerColor = SurfaceLight,
+                            unfocusedContainerColor = SurfaceLight
                         )
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // ── Password field ──
                     OutlinedTextField(
                         value = uiState.password,
                         onValueChange = viewModel::onPasswordChange,
                         label = { Text("Password") },
                         leadingIcon = {
-                            Icon(Icons.Default.Lock, contentDescription = null)
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = PrimaryCoral.copy(alpha = 0.7f)
+                            )
                         },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                                    contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                    tint = OnSurfaceVariantLight.copy(alpha = 0.7f)
                                 )
                             }
                         },
@@ -177,21 +238,24 @@ fun LoginScreen(
                         ),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryGreen,
-                            focusedLabelColor = PrimaryGreen
+                            focusedBorderColor = PrimaryCoral,
+                            unfocusedBorderColor = OnSurfaceVariantLight.copy(alpha = 0.3f),
+                            focusedLabelColor = PrimaryCoral,
+                            unfocusedLabelColor = OnSurfaceVariantLight,
+                            cursorColor = PrimaryCoral,
+                            focusedContainerColor = SurfaceLight,
+                            unfocusedContainerColor = SurfaceLight
                         )
                     )
 
+                    // ── Error / warning message ──
                     if (uiState.error != null) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (uiState.isLockedOut)
-                                MaterialTheme.colorScheme.errorContainer
-                            else
-                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = ErrorColor.copy(alpha = 0.1f),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -203,7 +267,7 @@ fun LoginScreen(
                                     Icon(
                                         imageVector = Icons.Default.Warning,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error,
+                                        tint = WarningColor,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -213,7 +277,7 @@ fun LoginScreen(
                                         "Locked — retry in ${uiState.lockoutSeconds}s"
                                     else
                                         uiState.error!!,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    color = ErrorColor,
                                     style = MaterialTheme.typography.bodySmall,
                                     textAlign = TextAlign.Center
                                 )
@@ -221,11 +285,12 @@ fun LoginScreen(
                         }
                     }
 
+                    // ── Attempts remaining warning ──
                     if (!uiState.isLockedOut && (uiState.attemptsLeft ?: 3) <= 2 && uiState.error == null) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "${uiState.attemptsLeft} attempt${if (uiState.attemptsLeft == 1) "" else "s"} remaining",
-                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                            color = WarningColor.copy(alpha = 0.9f),
                             style = MaterialTheme.typography.bodySmall,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
@@ -234,42 +299,71 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    // ── Primary Sign In button ──
                     Button(
                         onClick = viewModel::login,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                        shape = RoundedCornerShape(12.dp),
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
                         enabled = !uiState.isLoading && !uiState.isLockedOut,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PrimaryGreen,
-                            disabledContainerColor = PrimaryGreen.copy(alpha = 0.4f)
+                            containerColor = PrimaryCoral,
+                            contentColor = Color.White,
+                            disabledContainerColor = PrimaryCoral.copy(alpha = 0.4f),
+                            disabledContentColor = Color.White.copy(alpha = 0.7f)
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 4.dp,
+                            pressedElevation = 2.dp
                         )
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
-                                color = White,
+                                color = Color.White,
                                 strokeWidth = 2.dp
                             )
                         } else if (uiState.isLockedOut) {
                             Text(
                                 text = "Wait ${uiState.lockoutSeconds}s",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
                             )
                         } else {
                             Text(
                                 text = "Sign In",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
                             )
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // ── Bottom decorative gradient bar ──
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .offset(y = 24.dp)
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                PrimaryCoral,
+                                SecondaryAmber,
+                                PrimaryCoralLight
+                            )
+                        ),
+                        shape = RoundedCornerShape(3.dp)
+                    )
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
-
-private val White = androidx.compose.ui.graphics.Color.White

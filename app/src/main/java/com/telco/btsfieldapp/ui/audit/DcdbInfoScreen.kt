@@ -39,14 +39,13 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+// DailyMe Warm Palette — section-specific colors
 private val SECTION_COLORS = listOf(
-    Color(0xFFF59E0B), // amber  — DCDB
-    Color(0xFFEF4444), // red    — Non-Priority
-    Color(0xFF22C55E), // green  — Priority
-    Color(0xFF3B82F6), // blue   — DCDU Connections
+    Color(0xFFF59E0B), // amber   — DCDB
+    Color(0xFF8B5CF6), // purple — DCDU Connections
     Color(0xFF8B5CF6), // purple — RRU
     Color(0xFFEC4899), // pink   — AAU
-    Color(0xFF06B6D4), // cyan   — BTS Earthing
+    Color(0xFFF97316), // coral  — BTS Earthing
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,14 +85,18 @@ fun DcdbInfoScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFF59E0B),
+                    containerColor = PrimaryCoral,
                     titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 )
             )
         },
         bottomBar = {
-            Surface(modifier = Modifier.fillMaxWidth(), shadowElevation = 8.dp) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = SurfaceLight,
+                shadowElevation = 8.dp
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -102,25 +105,31 @@ fun DcdbInfoScreen(
                 ) {
                     val isBusy = uiState.isSubmitting || uiState.isSavingDraft || uiState.isUploadingPhotos
 
+                    // Save Draft — outline coral
                     OutlinedButton(
                         onClick = viewModel::saveDraft,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.5.dp, PrimaryCoral),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = PrimaryCoral
+                        ),
                         enabled = !isBusy
                     ) {
                         if (uiState.isSavingDraft || uiState.isUploadingPhotos) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = PrimaryCoral)
                         } else {
                             Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
                             Text("Save Draft")
                         }
                     }
+                    // Submit for Review — filled coral
                     Button(
                         onClick = viewModel::submit,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryCoral),
                         enabled = !isBusy
                     ) {
                         if (uiState.isSubmitting || uiState.isUploadingPhotos) {
@@ -138,9 +147,10 @@ fun DcdbInfoScreen(
                 }
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = BackgroundLight
     ) { padding ->
-        // Upload progress overlay
+        // Upload progress overlay — warm cream with coral loading
         UploadProgressOverlay(
             title = if (uiState.isSubmitting) "Submitting Report..." else "Saving Draft...",
             isVisible = uiState.isUploadingPhotos,
@@ -175,7 +185,7 @@ fun DcdbInfoScreen(
                     )
 
                     // ── Non-Priority ─────────────────────────────────────────
-                    SubSectionHeader("Non-Priority Cable", Color(0xFFEF4444))
+                    SubSectionHeader("Non-Priority Cable", ErrorColor)
                     Spacer(Modifier.height(8.dp))
 
                     FormTextField(
@@ -213,7 +223,7 @@ fun DcdbInfoScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 singleLine = true,
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(16.dp)
                             )
                             OutlinedTextField(
                                 value = slot.breakerRating,
@@ -222,7 +232,7 @@ fun DcdbInfoScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 singleLine = true,
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(16.dp)
                             )
                             if (uiState.npDcdus.size > 1) {
                                 IconButton(onClick = { viewModel.removeNpDcdu(idx) }) {
@@ -271,10 +281,10 @@ fun DcdbInfoScreen(
                         )
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color.Gray.copy(alpha = 0.2f))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = PrimaryCoralLight)
 
                     // ── Priority ────────────────────────────────────────────
-                    SubSectionHeader("Priority Cable", Color(0xFF22C55E))
+                    SubSectionHeader("Priority Cable", SuccessColor)
                     Spacer(Modifier.height(8.dp))
 
                     FormTextField(
@@ -311,7 +321,7 @@ fun DcdbInfoScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 singleLine = true,
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(16.dp)
                             )
                             OutlinedTextField(
                                 value = slot.breakerRating,
@@ -320,7 +330,7 @@ fun DcdbInfoScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 singleLine = true,
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(16.dp)
                             )
                             if (uiState.pDcdus.size > 1) {
                                 IconButton(onClick = { viewModel.removePDcdu(idx) }) {
@@ -377,11 +387,11 @@ fun DcdbInfoScreen(
                     index = 1,
                     title = "DCDU Connections",
                     icon = Icons.Default.Hub,
-                    color = SECTION_COLORS[3],
+                    color = SECTION_COLORS[1],
                     isExpanded = uiState.expandedSections.contains(1),
                     onToggle = { viewModel.toggleSection(1) }
                 ) {
-                    SubSectionHeader("Non-Priority Connections", Color(0xFFEF4444))
+                    SubSectionHeader("Non-Priority Connections", ErrorColor)
                     Spacer(Modifier.height(8.dp))
                     uiState.npDcdusConnections.forEachIndexed { idx, conn ->
                         Row(
@@ -396,7 +406,7 @@ fun DcdbInfoScreen(
                                 placeholder = { Text("e.g. DCDB12A") },
                                 singleLine = true,
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(16.dp)
                             )
                             DcdbConnPhotoThumbnail(
                                 photoPath = conn.photoPath,
@@ -419,9 +429,9 @@ fun DcdbInfoScreen(
                         Text("Add Non-Priority Breaker DCDU")
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color.Gray.copy(alpha = 0.2f))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = PrimaryCoralLight)
 
-                    SubSectionHeader("Priority Connections", Color(0xFF22C55E))
+                    SubSectionHeader("Priority Connections", SuccessColor)
                     Spacer(Modifier.height(8.dp))
                     uiState.pDcdusConnections.forEachIndexed { idx, conn ->
                         Row(
@@ -436,7 +446,7 @@ fun DcdbInfoScreen(
                                 placeholder = { Text("e.g. DCDB12A") },
                                 singleLine = true,
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(16.dp)
                             )
                             DcdbConnPhotoThumbnail(
                                 photoPath = conn.photoPath,
@@ -482,7 +492,7 @@ fun DcdbInfoScreen(
                     index = 2,
                     title = "RRU",
                     icon = Icons.Default.SignalCellularAlt,
-                    color = SECTION_COLORS[4],
+                    color = SECTION_COLORS[2],
                     isExpanded = uiState.expandedSections.contains(2),
                     onToggle = { viewModel.toggleSection(2) }
                 ) {
@@ -495,7 +505,7 @@ fun DcdbInfoScreen(
                     )
                     Spacer(Modifier.height(12.dp))
 
-                    SubSectionHeader("Power Cables", Color(0xFF8B5CF6))
+                    SubSectionHeader("Power Cables", SECTION_COLORS[2])
                     Spacer(Modifier.height(8.dp))
                     FormTextField(value = uiState.rruPowerCableCount, onValueChange = viewModel::onRruPowerCableCountChange, label = "RRU Power Cable Count", keyboardType = KeyboardType.Number)
                     Spacer(Modifier.height(8.dp))
@@ -506,7 +516,7 @@ fun DcdbInfoScreen(
                     FormTextField(value = uiState.rruPowerCableTotalMissing, onValueChange = viewModel::onRruPowerCableTotalMissingChange, label = "RRU Power Cable Total Length Missing (m)", keyboardType = KeyboardType.Number)
 
                     Spacer(Modifier.height(12.dp))
-                    SubSectionHeader("Earthing Cables", Color(0xFF8B5CF6))
+                    SubSectionHeader("Earthing Cables", SECTION_COLORS[2])
                     Spacer(Modifier.height(8.dp))
                     FormTextField(value = uiState.rruEarthingCableCount, onValueChange = viewModel::onRruEarthingCableCountChange, label = "RRU Earthing Cable Count (pcs)", keyboardType = KeyboardType.Number)
                     Spacer(Modifier.height(8.dp))
@@ -522,7 +532,7 @@ fun DcdbInfoScreen(
                     index = 3,
                     title = "AAU",
                     icon = Icons.Default.CellTower,
-                    color = SECTION_COLORS[5],
+                    color = SECTION_COLORS[3],
                     isExpanded = uiState.expandedSections.contains(3),
                     onToggle = { viewModel.toggleSection(3) }
                 ) {
@@ -535,7 +545,7 @@ fun DcdbInfoScreen(
                     )
                     Spacer(Modifier.height(12.dp))
 
-                    SubSectionHeader("Power Cables", Color(0xFFEC4899))
+                    SubSectionHeader("Power Cables", SECTION_COLORS[3])
                     Spacer(Modifier.height(8.dp))
                     FormTextField(value = uiState.aauPowerCableCount, onValueChange = viewModel::onAauPowerCableCountChange, label = "AAU Power Cable Count", keyboardType = KeyboardType.Number)
                     Spacer( Modifier.height(8.dp))
@@ -546,7 +556,7 @@ fun DcdbInfoScreen(
                     FormTextField(value = uiState.aauPowerCableTotalMissing, onValueChange = viewModel::onAauPowerCableTotalMissingChange, label = "AAU Power Cable Total Length Missing (m)", keyboardType = KeyboardType.Number)
 
                     Spacer(Modifier.height(12.dp))
-                    SubSectionHeader("Earthing Cables", Color(0xFFEC4899))
+                    SubSectionHeader("Earthing Cables", SECTION_COLORS[3])
                     Spacer(Modifier.height(8.dp))
                     FormTextField(value = uiState.aauEarthingCableCount, onValueChange = viewModel::onAauEarthingCableCountChange, label = "AAU Earthing Cable Count (pcs)", keyboardType = KeyboardType.Number)
                     Spacer(Modifier.height(8.dp))
@@ -562,7 +572,7 @@ fun DcdbInfoScreen(
                     index = 4,
                     title = "BTS Earthing",
                     icon = Icons.Default.Bolt,
-                    color = SECTION_COLORS[6],
+                    color = SECTION_COLORS[4],
                     isExpanded = uiState.expandedSections.contains(4),
                     onToggle = { viewModel.toggleSection(4) }
                 ) {
@@ -614,25 +624,16 @@ private fun SectionCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column { }
-    }
-    LaunchedEffect(isExpanded) {}
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column {
-            // Header
+            // Colored header strip at top
             Surface(
                 onClick = onToggle,
-                color = color.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                color = color,
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -640,38 +641,51 @@ private fun SectionCard(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Section number badge — coral circle with white number
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(Color.White.copy(alpha = 0.25f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "${index + 1}",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(color.copy(alpha = 0.2f), RoundedCornerShape(8.dp)),
+                            .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+                        Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = color,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
                         modifier = Modifier.weight(1f)
                     )
-                    Text(
-                        text = "Section ${index + 1}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = color.copy(alpha = 0.7f)
-                    )
-                    Spacer(Modifier.width(8.dp))
                     Icon(
                         if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         null,
-                        tint = color
+                        tint = Color.White
                     )
                 }
             }
 
             AnimatedVisibility(visible = isExpanded) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .background(BackgroundLight.copy(alpha = 0.5f), RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+                ) {
                     content()
                 }
             }
@@ -684,7 +698,7 @@ private fun SubSectionHeader(text: String, color: Color) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(color.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+            .background(color.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -715,14 +729,19 @@ private fun FormTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
-        placeholder = { Text(hint, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
+        placeholder = { Text(hint, color = OnSurfaceVariantLight.copy(alpha = 0.5f)) },
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = PrimaryGreen,
-            focusedLabelColor = PrimaryGreen
+            focusedBorderColor = PrimaryCoral,
+            unfocusedBorderColor = PrimaryCoralLight,
+            focusedLabelColor = PrimaryCoral,
+            unfocusedLabelColor = OnSurfaceVariantLight,
+            cursorColor = PrimaryCoral,
+            focusedContainerColor = SurfaceLight,
+            unfocusedContainerColor = SurfaceLight
         )
     )
 }
@@ -733,16 +752,17 @@ private fun FormReadOnlyField(label: String, value: String, hint: String = "") {
         value = value,
         onValueChange = {},
         label = { Text(label) },
-        placeholder = { Text(hint, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
+        placeholder = { Text(hint, color = OnSurfaceVariantLight.copy(alpha = 0.5f)) },
         readOnly = true,
         enabled = false,
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            disabledBorderColor = PrimaryGreen.copy(alpha = 0.3f),
-            disabledTextColor = PrimaryGreen,
-            disabledLabelColor = PrimaryGreen.copy(alpha = 0.7f)
+            disabledBorderColor = PrimaryCoralLight,
+            disabledTextColor = OnSurfaceLight,
+            disabledLabelColor = OnSurfaceVariantLight,
+            disabledContainerColor = PrimaryCoralLight.copy(alpha = 0.2f)
         )
     )
 }
@@ -767,12 +787,12 @@ private fun PhotoCaptureRow(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = OnSurfaceLight
             )
             Text(
                 text = "${photos.size}/$maxPhotos",
                 style = MaterialTheme.typography.labelSmall,
-                color = if (photos.size >= maxPhotos) ErrorColor else PrimaryGreen
+                color = if (photos.size >= maxPhotos) SuccessColor else SecondaryAmber
             )
         }
         Spacer(Modifier.height(8.dp))
@@ -791,12 +811,12 @@ private fun PhotoCaptureRow(
                     OutlinedCard(
                         onClick = onAddPhoto,
                         modifier = Modifier.size(72.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.5.dp, PrimaryGreen.copy(alpha = 0.5f)),
-                        colors = CardDefaults.outlinedCardColors(containerColor = PrimaryGreen.copy(alpha = 0.05f))
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.5.dp, PrimaryCoral.copy(alpha = 0.5f)),
+                        colors = CardDefaults.outlinedCardColors(containerColor = PrimaryCoralLight.copy(alpha = 0.3f))
                     ) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.AddAPhoto, "Add photo", tint = PrimaryGreen, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Default.AddAPhoto, "Add photo", tint = PrimaryCoral, modifier = Modifier.size(28.dp))
                         }
                     }
                 }
@@ -830,13 +850,13 @@ private fun PhotoThumbnail(
     Box(
         modifier = Modifier
             .size(80.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .border(
                 width = 1.5.dp,
-                color = if (isUploaded) PrimaryGreen else Color(0xFFF59E0B),
-                shape = RoundedCornerShape(10.dp)
+                color = if (isUploaded) PrimaryCoral else SecondaryAmber,
+                shape = RoundedCornerShape(12.dp)
             )
-            .background(if (isUploaded) Color.Transparent else Color(0xFFFFFBEB))
+            .background(if (isUploaded) SurfaceLight else SecondaryAmberLight.copy(alpha = 0.5f))
     ) {
         // Actual image thumbnail
         if (file.exists()) {
@@ -848,32 +868,32 @@ private fun PhotoThumbnail(
                 contentDescription = "Photo thumbnail",
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { onView() },
                 contentScale = ContentScale.Crop
             )
         } else {
             Box(
-                modifier = Modifier.fillMaxSize().background(PrimaryGreen.copy(alpha = 0.08f)),
+                modifier = Modifier.fillMaxSize().background(PrimaryCoralLight.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.Image,
                     contentDescription = null,
-                    tint = PrimaryGreen,
+                    tint = PrimaryCoral,
                     modifier = Modifier.size(28.dp)
                 )
             }
         }
 
-        // Upload status badge — exclamation mark if not uploaded
+        // Upload status badge — amber exclamation if not uploaded
         if (!isUploaded) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(4.dp)
                     .size(20.dp)
-                    .background(Color(0xFFF59E0B), CircleShape),
+                    .background(SecondaryAmber, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -919,11 +939,11 @@ private fun DcdbConnPhotoThumbnail(
         Box(
             modifier = Modifier
                 .size(56.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .border(
                     width = 1.5.dp,
-                    color = if (isUploaded) PrimaryGreen else Color(0xFFF59E0B),
-                    shape = RoundedCornerShape(8.dp)
+                    color = if (isUploaded) PrimaryCoral else SecondaryAmber,
+                    shape = RoundedCornerShape(10.dp)
                 )
                 .clickable { onView() }
         ) {
@@ -934,15 +954,15 @@ private fun DcdbConnPhotoThumbnail(
                         .crossfade(true)
                         .build(),
                     contentDescription = "Photo thumbnail",
-                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
-                    modifier = Modifier.fillMaxSize().background(PrimaryGreen.copy(alpha = 0.08f)),
+                    modifier = Modifier.fillMaxSize().background(PrimaryCoralLight.copy(alpha = 0.3f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Image, null, tint = PrimaryGreen, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.Image, null, tint = PrimaryCoral, modifier = Modifier.size(24.dp))
                 }
             }
 
@@ -953,7 +973,7 @@ private fun DcdbConnPhotoThumbnail(
                         .align(Alignment.TopStart)
                         .padding(2.dp)
                         .size(16.dp)
-                        .background(Color(0xFFF59E0B), CircleShape),
+                        .background(SecondaryAmber, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("!", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -975,9 +995,11 @@ private fun DcdbConnPhotoThumbnail(
         OutlinedButton(
             onClick = onCapture,
             modifier = Modifier.height(56.dp),
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(10.dp),
+            border = BorderStroke(1.5.dp, PrimaryCoral.copy(alpha = 0.5f)),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryCoral)
         ) {
-            Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(18.dp), tint = PrimaryGreen)
+            Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(18.dp), tint = PrimaryCoral)
             Spacer(Modifier.width(4.dp))
             Text("Photo", style = MaterialTheme.typography.labelMedium)
         }

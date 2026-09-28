@@ -3,6 +3,7 @@ package com.telco.btsfieldapp.ui.audit
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,10 +23,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.telco.btsfieldapp.ui.theme.*
 
 /**
  * Full-screen modal overlay showing per-photo upload progress.
  * Used during Save Draft and Submit for Review when photos are attached.
+ * DailyMe warm aesthetic: warm cream semi-transparent background, coral accents.
  *
  * @param title        Dialog title ("Saving Draft..." / "Submitting...")
  * @param isVisible    Whether to show the overlay
@@ -56,9 +59,10 @@ fun UploadProgressOverlay(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .wrapContentHeight(),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp
+            shape = RoundedCornerShape(20.dp),
+            color = SurfaceLight,
+            tonalElevation = 8.dp,
+            shadowElevation = 8.dp
         ) {
             Column(
                 modifier = Modifier.padding(24.dp)
@@ -68,16 +72,25 @@ fun UploadProgressOverlay(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        Icons.Default.CloudUpload,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    // Coral circle background for icon
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(PrimaryCoral.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.CloudUpload,
+                            contentDescription = null,
+                            tint = PrimaryCoral,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = OnSurfaceLight
                     )
                 }
 
@@ -90,7 +103,7 @@ fun UploadProgressOverlay(
                 Text(
                     text = "$doneCount / $total photos uploaded",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = OnSurfaceVariantLight
                 )
 
                 Spacer(Modifier.height(8.dp))
@@ -100,12 +113,13 @@ fun UploadProgressOverlay(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp),
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    trackColor = PrimaryCoral.copy(alpha = 0.15f),
+                    color = PrimaryCoral,
                 )
 
                 Spacer(Modifier.height(20.dp))
 
-                HorizontalDivider()
+                HorizontalDivider(color = BackgroundLight)
 
                 Spacer(Modifier.height(12.dp))
 
@@ -114,7 +128,7 @@ fun UploadProgressOverlay(
                     Text(
                         text = "Photos",
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = OnSurfaceVariantLight
                     )
                     Spacer(Modifier.height(8.dp))
 
@@ -130,17 +144,25 @@ fun UploadProgressOverlay(
                         }
                     }
                 } else {
-                    // No photos — just show spinner
+                    // No photos — just show coral spinner on warm cream background
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(BackgroundLight, RoundedCornerShape(12.dp))
+                            .padding(16.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = PrimaryCoral
+                        )
                         Spacer(Modifier.width(12.dp))
                         Text(
                             text = "Preparing upload...",
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnSurfaceLight
                         )
                     }
                 }
@@ -165,7 +187,7 @@ private fun PhotoUploadRow(
                 Icon(
                     Icons.Default.HourglassEmpty,
                     contentDescription = "Pending",
-                    tint = Color(0xFF9E9E9E),
+                    tint = OnSurfaceVariantLight,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -173,14 +195,14 @@ private fun PhotoUploadRow(
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary
+                    color = PrimaryCoral
                 )
             }
             PhotoUploadStatus.DONE -> {
                 Icon(
                     Icons.Default.CheckCircle,
                     contentDescription = "Done",
-                    tint = Color(0xFF22C55E),
+                    tint = SuccessColor,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -188,7 +210,7 @@ private fun PhotoUploadRow(
                 Icon(
                     Icons.Default.Error,
                     contentDescription = "Failed",
-                    tint = Color(0xFFEF4444),
+                    tint = ErrorColor,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -197,7 +219,7 @@ private fun PhotoUploadRow(
         Icon(
             Icons.Default.Photo,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = OnSurfaceVariantLight,
             modifier = Modifier.size(16.dp)
         )
 
@@ -206,7 +228,8 @@ private fun PhotoUploadRow(
             text = fieldName.replaceFirstChar { it.uppercase() }
                 .replace("_", " "),
             style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            color = OnSurfaceLight
         )
 
         // Status label
@@ -219,10 +242,10 @@ private fun PhotoUploadRow(
             },
             style = MaterialTheme.typography.labelSmall,
             color = when (status) {
-                PhotoUploadStatus.PENDING -> Color(0xFF9E9E9E)
-                PhotoUploadStatus.UPLOADING -> MaterialTheme.colorScheme.primary
-                PhotoUploadStatus.DONE -> Color(0xFF22C55E)
-                PhotoUploadStatus.FAILED -> Color(0xFFEF4444)
+                PhotoUploadStatus.PENDING -> OnSurfaceVariantLight
+                PhotoUploadStatus.UPLOADING -> PrimaryCoral
+                PhotoUploadStatus.DONE -> SuccessColor
+                PhotoUploadStatus.FAILED -> ErrorColor
             }
         )
     }

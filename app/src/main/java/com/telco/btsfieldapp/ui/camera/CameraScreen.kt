@@ -3,7 +3,6 @@ package com.telco.btsfieldapp.ui.camera
 import android.Manifest
 import android.content.Context
 import android.content.SharedPreferences
-import android.graphics.Color
 import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,11 +11,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FlashOff
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshotFlow
@@ -32,6 +34,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.telco.btsfieldapp.ui.theme.PrimaryCoral
+import com.telco.btsfieldapp.ui.theme.StatusActive
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 
@@ -110,7 +114,7 @@ fun CameraScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(ComposeColor.Black)
+                    .background(ComposeColor(0xFF1C1917))
                     .padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
@@ -138,11 +142,11 @@ fun CameraScreen(
                             )
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ComposeColor(0xFF22C55E))
-                ) { Text("Grant Permissions") }
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryCoral)
+                ) { Text("Grant Permissions", color = ComposeColor.White) }
             }
         } else {
-            // Camera preview
+            // Camera preview (full-screen, dark background preserved)
             AndroidView(
                 factory = { ctx ->
                     PreviewView(ctx).apply {
@@ -154,19 +158,20 @@ fun CameraScreen(
                         implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                     }.also { previewViewState.value = it }
                 },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize().background(ComposeColor(0xFF1C1917))
             )
 
-            // Top gradient overlay (for GPS info readability)
+            // Top gradient overlay (dark with coral tint)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(140.dp)
+                    .height(160.dp)
                     .align(Alignment.TopCenter)
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                ComposeColor.Black.copy(alpha = 0.75f),
+                                ComposeColor(0xFF1C1917).copy(alpha = 0.9f),
+                                ComposeColor(0xFF1C1917).copy(alpha = 0.6f),
                                 ComposeColor.Transparent
                             )
                         )
@@ -191,7 +196,7 @@ fun CameraScreen(
                 )
             }
 
-            // Close button
+            // Close button (white icon on dark)
             IconButton(
                 onClick = { onBack(null) },
                 modifier = Modifier
@@ -199,7 +204,7 @@ fun CameraScreen(
                     .statusBarsPadding()
                     .padding(8.dp)
                     .size(40.dp)
-                    .background(ComposeColor.Black.copy(alpha = 0.5f), CircleShape)
+                    .background(ComposeColor(0xFF1C1917).copy(alpha = 0.6f), CircleShape)
             ) {
                 Icon(
                     Icons.Default.Close,
@@ -212,24 +217,24 @@ fun CameraScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
+                    .height(180.dp)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
                                 ComposeColor.Transparent,
-                                ComposeColor.Black.copy(alpha = 0.8f)
+                                ComposeColor(0xFF1C1917).copy(alpha = 0.95f)
                             )
                         )
                     )
             )
 
-            // Capture button
+            // Capture button (white circle with coral ring)
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 32.dp)
+                    .padding(bottom = 36.dp)
             ) {
                 CaptureButton(
                     enabled = uiState.isInitialized && !uiState.isCapturing,
@@ -246,7 +251,7 @@ fun CameraScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = 140.dp)
+                .padding(bottom = 160.dp)
         )
     }
 }
@@ -265,7 +270,7 @@ private fun GpsInfoCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = ComposeColor.Black.copy(alpha = 0.6f)
+            containerColor = ComposeColor(0xFF1C1917).copy(alpha = 0.75f)
         )
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -350,15 +355,14 @@ private fun CaptureButton(
             modifier = Modifier
                 .size(80.dp)
                 .clip(CircleShape)
-                .background(
-                    if (enabled) ComposeColor.White else ComposeColor.Gray
-                ),
+                .background(ComposeColor.White.copy(alpha = 0.15f))
+                .border(3.dp, if (enabled) PrimaryCoral else ComposeColor.Gray.copy(alpha = 0.5f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             if (isCapturing) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(40.dp),
-                    color = ComposeColor(0xFF22C55E),
+                    color = PrimaryCoral,
                     strokeWidth = 3.dp
                 )
             } else {
@@ -372,7 +376,7 @@ private fun CaptureButton(
                             .size(64.dp)
                             .clip(CircleShape)
                             .background(
-                                if (enabled) ComposeColor(0xFF22C55E) else ComposeColor.Gray.copy(alpha = 0.5f)
+                                if (enabled) ComposeColor.White else ComposeColor.Gray.copy(alpha = 0.4f)
                             )
                     )
                 }

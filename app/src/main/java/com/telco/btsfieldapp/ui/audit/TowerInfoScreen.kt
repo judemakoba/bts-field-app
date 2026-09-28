@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -36,8 +37,9 @@ import com.telco.btsfieldapp.ui.theme.*
 import kotlinx.coroutines.flow.collectLatest
 import java.io.File
 
+// DailyMe Warm Palette — section-specific colors for Tower
 private val SECTION_COLORS = listOf(
-    Color(0xFF3B82F6), // blue  — Antenna
+    Color(0xFF3B82F6), // blue   — Antenna
     Color(0xFF8B5CF6), // purple — RRU
 )
 
@@ -84,14 +86,18 @@ fun TowerInfoScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF3B82F6),
+                    containerColor = PrimaryCoral,
                     titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 )
             )
         },
         bottomBar = {
-            Surface(modifier = Modifier.fillMaxWidth(), shadowElevation = 8.dp) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = SurfaceLight,
+                shadowElevation = 8.dp
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -100,25 +106,31 @@ fun TowerInfoScreen(
                 ) {
                     val isBusy = uiState.isSubmitting || uiState.isSavingDraft || uiState.isUploadingPhotos
 
+                    // Save Draft — outline coral
                     OutlinedButton(
                         onClick = viewModel::saveDraft,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.5.dp, PrimaryCoral),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = PrimaryCoral
+                        ),
                         enabled = !isBusy
                     ) {
                         if (uiState.isSavingDraft || uiState.isUploadingPhotos) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = PrimaryCoral)
                         } else {
                             Icon(Icons.Default.Save, null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
                             Text("Save Draft")
                         }
                     }
+                    // Submit for Review — filled coral
                     Button(
                         onClick = viewModel::submit,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryCoral),
                         enabled = !isBusy
                     ) {
                         if (uiState.isSubmitting || uiState.isUploadingPhotos) {
@@ -136,9 +148,10 @@ fun TowerInfoScreen(
                 }
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = BackgroundLight
     ) { padding ->
-        // Upload progress overlay
+        // Upload progress overlay — warm cream with coral loading
         UploadProgressOverlay(
             title = if (uiState.isSubmitting) "Submitting Report..." else "Saving Draft...",
             isVisible = uiState.isUploadingPhotos,
@@ -213,7 +226,7 @@ fun TowerInfoScreen(
                 OutlinedButton(
                     onClick = viewModel::addAntenna,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     border = BorderStroke(1.5.dp, SECTION_COLORS[0].copy(alpha = 0.5f)),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = SECTION_COLORS[0])
                 ) {
@@ -280,7 +293,7 @@ fun TowerInfoScreen(
                 OutlinedButton(
                     onClick = viewModel::addRru,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     border = BorderStroke(1.5.dp, SECTION_COLORS[1].copy(alpha = 0.5f)),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = SECTION_COLORS[1])
                 ) {
@@ -373,16 +386,24 @@ private fun AntennaEntryCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header
+            // Header with colored left bar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Colored left bar indicator
+                Box(
+                    modifier = Modifier
+                        .width(4.dp)
+                        .height(28.dp)
+                        .background(SECTION_COLORS[0], RoundedCornerShape(2.dp))
+                )
+                Spacer(Modifier.width(12.dp))
                 Text(
                     text = "Antenna ${index + 1}",
                     style = MaterialTheme.typography.titleMedium,
@@ -398,8 +419,8 @@ private fun AntennaEntryCard(
             }
 
             HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = SECTION_COLORS[0].copy(alpha = 0.2f)
+                modifier = Modifier.padding(vertical = 12.dp),
+                color = SECTION_COLORS[0].copy(alpha = 0.15f)
             )
 
             // Equipment Type
@@ -449,6 +470,7 @@ private fun AntennaEntryCard(
                     modifier = Modifier.weight(1f)
                 )
             }
+
             Spacer(Modifier.height(8.dp))
 
             FormTextField(
@@ -628,15 +650,23 @@ private fun RruEntryCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Colored left bar indicator
+                Box(
+                    modifier = Modifier
+                        .width(4.dp)
+                        .height(28.dp)
+                        .background(SECTION_COLORS[1], RoundedCornerShape(2.dp))
+                )
+                Spacer(Modifier.width(12.dp))
                 Text(
                     text = "RRU ${index + 1}",
                     style = MaterialTheme.typography.titleMedium,
@@ -652,8 +682,8 @@ private fun RruEntryCard(
             }
 
             HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                color = SECTION_COLORS[1].copy(alpha = 0.2f)
+                modifier = Modifier.padding(vertical = 12.dp),
+                color = SECTION_COLORS[1].copy(alpha = 0.15f)
             )
 
             DropdownField(
@@ -802,7 +832,7 @@ private fun RruEntryCard(
 private fun SectionCard(
     index: Int,
     title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     color: Color,
     isExpanded: Boolean,
     onToggle: () -> Unit,
@@ -810,15 +840,16 @@ private fun SectionCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column {
+            // Colored header strip at top
             Surface(
                 onClick = onToggle,
-                color = color.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                color = color,
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -826,37 +857,50 @@ private fun SectionCard(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Section number badge — coral circle with white number
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(Color.White.copy(alpha = 0.25f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "${index + 1}",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(color.copy(alpha = 0.2f), RoundedCornerShape(8.dp)),
+                            .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+                        Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = color,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
                         modifier = Modifier.weight(1f)
                     )
-                    Text(
-                        text = "Section ${index + 1}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = color.copy(alpha = 0.7f)
-                    )
-                    Spacer(Modifier.width(8.dp))
                     Icon(
                         if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         null,
-                        tint = color
+                        tint = Color.White
                     )
                 }
             }
             AnimatedVisibility(visible = isExpanded) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .background(BackgroundLight.copy(alpha = 0.5f), RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+                ) {
                     content()
                 }
             }
@@ -869,7 +913,7 @@ private fun RowTitle(text: String, color: Color, small: Boolean = false) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(color.copy(alpha = 0.06f), RoundedCornerShape(6.dp))
+            .background(color.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
             .padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -908,16 +952,20 @@ private fun DropdownField(
             value = value,
             onValueChange = {},
             label = { Text(label) },
-            placeholder = { Text("Select...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
+            placeholder = { Text("Select...", color = OnSurfaceVariantLight.copy(alpha = 0.5f)) },
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = color,
-                focusedLabelColor = color
+                unfocusedBorderColor = PrimaryCoralLight,
+                focusedLabelColor = color,
+                unfocusedLabelColor = OnSurfaceVariantLight,
+                focusedContainerColor = SurfaceLight,
+                unfocusedContainerColor = SurfaceLight
             )
         )
         ExposedDropdownMenu(
@@ -955,10 +1003,15 @@ private fun FormTextField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         singleLine = true,
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = PrimaryGreen,
-            focusedLabelColor = PrimaryGreen
+            focusedBorderColor = PrimaryCoral,
+            unfocusedBorderColor = PrimaryCoralLight,
+            focusedLabelColor = PrimaryCoral,
+            unfocusedLabelColor = OnSurfaceVariantLight,
+            cursorColor = PrimaryCoral,
+            focusedContainerColor = SurfaceLight,
+            unfocusedContainerColor = SurfaceLight
         )
     )
 }
@@ -973,11 +1026,12 @@ private fun FormReadOnlyField(label: String, value: String) {
         enabled = false,
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            disabledBorderColor = PrimaryGreen.copy(alpha = 0.3f),
-            disabledTextColor = PrimaryGreen,
-            disabledLabelColor = PrimaryGreen.copy(alpha = 0.7f)
+            disabledBorderColor = PrimaryCoralLight,
+            disabledTextColor = OnSurfaceLight,
+            disabledLabelColor = OnSurfaceVariantLight,
+            disabledContainerColor = PrimaryCoralLight.copy(alpha = 0.2f)
         )
     )
 }
@@ -1004,7 +1058,7 @@ private fun TowerPhotoThumbnail(
                 .clip(RoundedCornerShape(12.dp))
                 .border(
                     width = 1.5.dp,
-                    color = if (isUploaded) color else Color(0xFFF59E0B),
+                    color = if (isUploaded) color else SecondaryAmber,
                     shape = RoundedCornerShape(12.dp)
                 )
                 .clickable { onView() }
@@ -1019,14 +1073,14 @@ private fun TowerPhotoThumbnail(
                 contentScale = ContentScale.Crop
             )
 
-            // Upload badge
+            // Upload badge — amber exclamation if not uploaded
             if (!isUploaded) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(4.dp)
                         .size(18.dp)
-                        .background(Color(0xFFF59E0B), CircleShape),
+                        .background(SecondaryAmber, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("!", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -1064,7 +1118,7 @@ private fun TowerPhotoThumbnail(
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.5.dp, color.copy(alpha = 0.5f)),
             colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = Color.Transparent,
+                containerColor = color.copy(alpha = 0.05f),
                 contentColor = color
             )
         ) {

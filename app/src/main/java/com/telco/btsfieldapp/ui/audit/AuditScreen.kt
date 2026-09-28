@@ -3,6 +3,7 @@
 package com.telco.btsfieldapp.ui.audit
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,7 +57,7 @@ fun AuditScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PrimaryGreen,
+                    containerColor = PrimaryCoral,
                     titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 )
@@ -128,7 +129,7 @@ fun AuditScreen(
                             .height(52.dp),
                         shape = RoundedCornerShape(12.dp),
                         enabled = !uiState.isSubmitting,
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryCoral)
                     ) {
                         if (uiState.isSubmitting) {
                             CircularProgressIndicator(
@@ -157,9 +158,24 @@ private fun AuditTypeTabRow(
     ScrollableTabRow(
         selectedTabIndex = AuditType.entries.indexOf(selectedType),
         containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = PrimaryGreen,
+        contentColor = PrimaryCoral,
         edgePadding = 12.dp,
-        divider = {}
+        divider = {},
+        indicator = { tabPositions ->
+            val selectedIndex = AuditType.entries.indexOf(selectedType)
+            if (selectedIndex < tabPositions.size) {
+                val currentTab = tabPositions[selectedIndex]
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .wrapContentWidth(Alignment.Start)
+                        .offset(x = currentTab.left)
+                        .width(currentTab.width)
+                        .height(3.dp)
+                        .background(PrimaryCoral, RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                )
+            }
+        }
     ) {
         AuditType.entries.forEach { type ->
             val selected = type == selectedType
@@ -170,14 +186,14 @@ private fun AuditTypeTabRow(
                     Text(
                         text = type.label,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selected) PrimaryGreen else OnSurfaceVariantLight
+                        color = if (selected) PrimaryCoral else OnSurfaceVariantLight
                     )
                 },
                 icon = {
                     Icon(
                         imageVector = auditTypeIcon(type),
                         contentDescription = null,
-                        tint = if (selected) PrimaryGreen else OnSurfaceVariantLight.copy(alpha = 0.6f)
+                        tint = if (selected) PrimaryCoral else OnSurfaceVariantLight.copy(alpha = 0.6f)
                     )
                 }
             )
@@ -407,14 +423,14 @@ private fun SectionHeader(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
-            tint = PrimaryGreen
+            tint = PrimaryCoral
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
-            color = PrimaryGreen
+            color = PrimaryCoral
         )
     }
 }
@@ -451,9 +467,9 @@ private fun SelectField(
                     .menuAnchor(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PrimaryGreen,
+                    focusedBorderColor = PrimaryCoral,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                    focusedContainerColor = PrimaryGreen.copy(alpha = 0.03f)
+                    focusedContainerColor = PrimaryCoral.copy(alpha = 0.03f)
                 )
             )
             ExposedDropdownMenu(
@@ -468,7 +484,7 @@ private fun SelectField(
                                     selected = value == option,
                                     onClick = null,
                                     colors = RadioButtonDefaults.colors(
-                                        selectedColor = PrimaryGreen
+                                        selectedColor = PrimaryCoral
                                     )
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -502,9 +518,9 @@ private fun TextFieldWithUnit(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = PrimaryGreen,
-            focusedLabelColor = PrimaryGreen,
-            focusedContainerColor = PrimaryGreen.copy(alpha = 0.03f)
+            focusedBorderColor = PrimaryCoral,
+            focusedLabelColor = PrimaryCoral,
+            focusedContainerColor = PrimaryCoral.copy(alpha = 0.03f)
         )
     )
 }
@@ -524,9 +540,9 @@ private fun NotesField(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = PrimaryGreen,
-            focusedLabelColor = PrimaryGreen,
-            focusedContainerColor = PrimaryGreen.copy(alpha = 0.03f)
+            focusedBorderColor = PrimaryCoral,
+            focusedLabelColor = PrimaryCoral,
+            focusedContainerColor = PrimaryCoral.copy(alpha = 0.03f)
         )
     )
 }

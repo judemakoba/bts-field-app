@@ -13,8 +13,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.telco.btsfieldapp.domain.model.DcdbRecord
@@ -53,12 +55,13 @@ fun SiteDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PrimaryGreen,
+                    containerColor = PrimaryCoral,
                     titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         if (uiState.isLoading) {
             Box(
@@ -67,7 +70,7 @@ fun SiteDetailScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = PrimaryGreen)
+                CircularProgressIndicator(color = PrimaryCoral)
             }
         } else {
             LazyColumn(
@@ -99,6 +102,7 @@ fun SiteDetailScreen(
                         text = "Audit History",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
+                        color = OnSurfaceLight,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
                 }
@@ -116,7 +120,7 @@ fun SiteDetailScreen(
                                 .padding(24.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = PrimaryGreen, strokeWidth = 2.dp)
+                            CircularProgressIndicator(color = PrimaryCoral, strokeWidth = 2.dp)
                         }
                     }
                 } else if (!hasRecords) {
@@ -174,47 +178,63 @@ private fun SiteInfoHeader(site: Site) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = PrimaryGreen.copy(alpha = 0.08f)
-        )
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(24.dp),
+                ambientColor = PrimaryCoral.copy(alpha = 0.12f),
+                spotColor = PrimaryCoral.copy(alpha = 0.12f)
+            ),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(20.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    Icons.Default.CellTower,
-                    contentDescription = null,
-                    tint = PrimaryGreen,
-                    modifier = Modifier.size(32.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(PrimaryCoralLight, RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.CellTower,
+                        contentDescription = null,
+                        tint = PrimaryCoral,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = site.siteId,
+                        text = site.name,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = PrimaryGreen
+                        color = OnSurfaceLight
+                    )
+                    Text(
+                        text = site.siteId,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PrimaryCoral,
+                        fontWeight = FontWeight.Medium
                     )
                     Text(
                         text = site.type.uppercase(),
                         style = MaterialTheme.typography.labelSmall,
-                        color = PrimaryGreen
+                        color = OnSurfaceVariantLight
                     )
                 }
-                Spacer(modifier = Modifier.weight(1f))
                 StatusBadge(status = site.status)
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = PrimaryGreen.copy(alpha = 0.2f))
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(modifier = Modifier.height(14.dp))
 
             InfoRow(icon = Icons.Default.LocationOn, label = "Address", value = site.address)
             site.latitude?.let { lat ->
@@ -232,15 +252,15 @@ private fun SiteInfoHeader(site: Site) {
 @Composable
 private fun StatusBadge(status: String) {
     val color = when (status.lowercase()) {
-        "active", "operational" -> StatusActive
+        "active", "operational" -> SuccessColor
         "inactive", "offline" -> StatusInactive
-        "critical", "fault" -> StatusCritical
-        "pending" -> StatusPending
+        "critical", "fault" -> ErrorColor
+        "pending" -> WarningColor
         else -> StatusInactive
     }
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = color.copy(alpha = 0.15f)
+        color = color.copy(alpha = 0.12f)
     ) {
         Text(
             text = status.replaceFirstChar { it.uppercase() },
@@ -298,36 +318,37 @@ private fun QuickActionsRow(
             text = "Start New Audit",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
+            color = OnSurfaceLight,
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        // Ground Equipment Scope — active
+        // Ground Equipment — coral filled button
         ScopeButton(
             text = "Ground Equipment Scope",
             icon = Icons.Default.ListAlt,
-            color = Color(0xFF22C55E),
+            color = PrimaryCoral,
             enabled = true,
             onClick = { onOpenGroundEquipment(siteId) },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
 
-        // Tower Equipment Scope — active
+        // Tower Equipment — coral filled button
         ScopeButton(
             text = "Tower Equipment Scope",
             icon = Icons.Default.Architecture,
-            color = Color(0xFF3B82F6),
+            color = PrimaryCoral,
             enabled = true,
             onClick = { onOpenTowerInfo(siteId) },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
 
-        // DCDB Information — active
+        // DCDB Information — coral filled button
         ScopeButton(
             text = "DCDB Information",
             icon = Icons.Default.ElectricalServices,
-            color = Color(0xFFF59E0B),
+            color = PrimaryCoral,
             enabled = true,
             onClick = { onOpenDcdbInfo(siteId) },
             modifier = Modifier.fillMaxWidth()
@@ -345,11 +366,11 @@ private fun ScopeButton(
     modifier: Modifier = Modifier
 ) {
     if (enabled) {
-        ElevatedButton(
+        Button(
             onClick = onClick,
             modifier = modifier.height(52.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.elevatedButtonColors(
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
                 containerColor = color,
                 contentColor = Color.White
             )
@@ -363,7 +384,7 @@ private fun ScopeButton(
             onClick = onClick,
             modifier = modifier.height(52.dp),
             enabled = false,
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = color.copy(alpha = 0.06f),
                 contentColor = color.copy(alpha = 0.5f),
@@ -394,32 +415,40 @@ private fun AuditSectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Coral left accent bar
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(20.dp)
+                .background(PrimaryCoral, RoundedCornerShape(2.dp))
+        )
+        Spacer(modifier = Modifier.width(10.dp))
         Icon(
             imageVector = icon,
             contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = PrimaryGreen
+            modifier = Modifier.size(18.dp),
+            tint = PrimaryCoral
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = "$title Records",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
-            color = PrimaryGreen
+            color = OnSurfaceLight
         )
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.width(8.dp))
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = PrimaryGreen.copy(alpha = 0.1f)
+            color = PrimaryCoralLight
         ) {
             Text(
                 text = count.toString(),
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                 style = MaterialTheme.typography.labelSmall,
-                color = PrimaryGreen,
+                color = PrimaryCoral,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -430,7 +459,7 @@ private fun AuditSectionHeader(
 private fun GroundRecordCard(record: GroundRecord) {
     RecordCard(
         icon = Icons.Default.Landscape,
-        color = StatusActive,
+        color = PrimaryCoral,
         title = "Ground",
         subtitle = "${record.fenceCondition.ifEmpty { "—" }} | ${record.groundResistance.ifEmpty { "—" }}Ω",
         notes = record.notes,
@@ -442,7 +471,7 @@ private fun GroundRecordCard(record: GroundRecord) {
 private fun DcdbRecordCard(record: DcdbRecord) {
     RecordCard(
         icon = Icons.Default.ElectricalServices,
-        color = WarningColor,
+        color = PrimaryCoral,
         title = "DCDB",
         subtitle = "${record.dcdbType.ifEmpty { "—" }} | ${record.dcdbCapacity.ifEmpty { "—" }}A",
         notes = record.notes,
@@ -454,7 +483,7 @@ private fun DcdbRecordCard(record: DcdbRecord) {
 private fun TowerRecordCard(record: TowerRecord) {
     RecordCard(
         icon = Icons.Default.Architecture,
-        color = InfoColor,
+        color = PrimaryCoral,
         title = "Tower",
         subtitle = "${record.towerType.ifEmpty { "—" }} | ${record.towerHeight.ifEmpty { "—" }}m",
         notes = record.notes,
@@ -474,57 +503,72 @@ private fun RecordCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .shadow(
+                elevation = 4.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = PrimaryCoral.copy(alpha = 0.08f),
+                spotColor = PrimaryCoral.copy(alpha = 0.08f)
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Coral header strip at the top
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .background(color.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .background(color, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = color,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = OnSurfaceVariantLight
-                )
-                if (notes.isNotEmpty()) {
-                    Text(
-                        text = notes,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = OnSurfaceVariantLight.copy(alpha = 0.7f),
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(PrimaryCoralLight, RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = OnSurfaceLight
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OnSurfaceVariantLight
+                    )
+                    if (notes.isNotEmpty()) {
+                        Text(
+                            text = notes,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = OnSurfaceVariantLight.copy(alpha = 0.7f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                Text(
+                    text = formatDateShort(date),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = OnSurfaceVariantLight
+                )
             }
-            Text(
-                text = formatDateShort(date),
-                style = MaterialTheme.typography.labelSmall,
-                color = OnSurfaceVariantLight
-            )
         }
     }
 }
@@ -548,7 +592,7 @@ private fun EmptyAuditState() {
             Text(
                 "No audits yet",
                 style = MaterialTheme.typography.titleSmall,
-                color = OnSurfaceVariantLight
+                color = OnSurfaceLight
             )
             Text(
                 "Start an audit above",

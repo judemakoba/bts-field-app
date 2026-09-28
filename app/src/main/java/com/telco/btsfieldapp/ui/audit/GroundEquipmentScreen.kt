@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -44,13 +45,14 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private val SECTION_COLORS = listOf(
-    Color(0xFF22C55E), // green
-    Color(0xFF3B82F6), // blue
-    Color(0xFFF59E0B), // amber
-    Color(0xFF8B5CF6), // purple
-    Color(0xFFEC4899), // pink
+    Color(0xFF22C55E), // green — Ground
+    Color(0xFFF97316), // coral — GPS
+    Color(0xFFF59E0B), // amber — Shelter
+    Color(0xFF3B82F6), // blue — Battery
+    Color(0xFF8B5CF6), // purple — AC
     Color(0xFFEF4444), // red
     Color(0xFF06B6D4), // cyan
+    Color(0xFFEC4899), // pink
 )
 
 private val TENANT_OPTIONS = listOf("Lyca", "MTN", "UTL", "Savanna", "Other")
@@ -145,14 +147,14 @@ fun GroundEquipmentScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ground Equipment Scope", fontWeight = FontWeight.Bold) },
+                title = { Text("Ground Equipment", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PrimaryGreen,
+                    containerColor = PrimaryCoral,
                     titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 )
@@ -175,11 +177,19 @@ fun GroundEquipmentScreen(
                     OutlinedButton(
                         onClick = viewModel::saveDraft,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.5.dp, PrimaryCoral),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = PrimaryCoral
+                        ),
                         enabled = !isBusy
                     ) {
                         if (uiState.isSavingDraft || uiState.isUploadingPhotos) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = PrimaryCoral
+                            )
                         } else {
                             Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
@@ -190,8 +200,11 @@ fun GroundEquipmentScreen(
                     Button(
                         onClick = viewModel::submit,
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryCoral,
+                            contentColor = Color.White
+                        ),
                         enabled = !isBusy
                     ) {
                         if (uiState.isSubmitting || uiState.isUploadingPhotos) {
@@ -203,13 +216,14 @@ fun GroundEquipmentScreen(
                         } else {
                             Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Submit for Review")
+                            Text("Submit")
                         }
                     }
                 }
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         // Upload progress overlay
         UploadProgressOverlay(
@@ -625,7 +639,7 @@ fun GroundEquipmentScreen(
                                 { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                             } else null,
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = PrimaryGreen,
+                                selectedContainerColor = PrimaryCoral,
                                 selectedLabelColor = Color.White
                             )
                         )
@@ -637,7 +651,7 @@ fun GroundEquipmentScreen(
                                 { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                             } else null,
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = PrimaryGreen,
+                                selectedContainerColor = PrimaryCoral,
                                 selectedLabelColor = Color.White
                             )
                         )
@@ -661,7 +675,7 @@ fun GroundEquipmentScreen(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SECTION CARD
+// SECTION CARD — DailyMe Warm Style
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -673,48 +687,86 @@ private fun FormSectionCard(
     onToggle: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val color = SECTION_COLORS.getOrElse(index) { PrimaryGreen }
+    val sectionColor = SECTION_COLORS.getOrElse(index) { PrimaryCoral }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 4.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = Color(0x40000000),
+                spotColor = Color(0x20000000)
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column {
-            // Section header
+            // Section header with colored left bar
             Surface(
                 onClick = onToggle,
                 modifier = Modifier.fillMaxWidth(),
-                color = color.copy(alpha = 0.1f),
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                color = SurfaceLight,
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(start = 4.dp, top = 12.dp, bottom = 12.dp, end = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Colored left bar accent
+                    Box(
+                        modifier = Modifier
+                            .width(4.dp)
+                            .height(40.dp)
+                            .background(sectionColor, RoundedCornerShape(2.dp))
+                    )
+
+                    Spacer(Modifier.width(12.dp))
+
+                    // Section number badge — coral circle with white number
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .background(PrimaryCoral, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "$index",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    Spacer(Modifier.width(12.dp))
+
+                    // Icon
                     Box(
                         modifier = Modifier
                             .size(36.dp)
-                            .background(color.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                            .background(sectionColor.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+                        Icon(icon, contentDescription = null, tint = sectionColor, modifier = Modifier.size(20.dp))
                     }
+
                     Spacer(Modifier.width(12.dp))
+
                     Text(
-                        text = "$index. $title",
+                        text = title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = color,
+                        color = OnSurfaceLight,
                         modifier = Modifier.weight(1f)
                     )
+
                     Icon(
                         imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = if (isExpanded) "Collapse" else "Expand",
-                        tint = color
+                        tint = sectionColor
                     )
                 }
             }
@@ -737,7 +789,7 @@ private fun FormSectionCard(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FORM FIELD COMPONENTS
+// FORM FIELD COMPONENTS — DailyMe Warm Style
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -756,18 +808,23 @@ private fun FormTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
-        placeholder = { Text(hint, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
+        placeholder = { Text(hint, color = OnSurfaceVariantLight.copy(alpha = 0.5f)) },
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         singleLine = singleLine,
         minLines = minLines,
         leadingIcon = leadingIcon?.let {
-            { Icon(it, contentDescription = null, modifier = Modifier.size(20.dp)) }
+            { Icon(it, contentDescription = null, modifier = Modifier.size(20.dp), tint = PrimaryCoral) }
         },
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = PrimaryGreen,
-            focusedLabelColor = PrimaryGreen
+            focusedBorderColor = PrimaryCoral,
+            unfocusedBorderColor = Color(0xFFE0D6CC),
+            focusedLabelColor = PrimaryCoral,
+            unfocusedLabelColor = OnSurfaceVariantLight,
+            cursorColor = PrimaryCoral,
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White
         )
     )
 }
@@ -782,16 +839,17 @@ private fun FormReadOnlyField(
         value = value,
         onValueChange = {},
         label = { Text(label) },
-        placeholder = { Text(hint, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
+        placeholder = { Text(hint, color = OnSurfaceVariantLight.copy(alpha = 0.5f)) },
         readOnly = true,
         enabled = false,
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            disabledBorderColor = PrimaryGreen.copy(alpha = 0.3f),
-            disabledTextColor = PrimaryGreen,
-            disabledLabelColor = PrimaryGreen.copy(alpha = 0.7f)
+            disabledBorderColor = PrimaryCoral.copy(alpha = 0.3f),
+            disabledTextColor = OnSurfaceLight,
+            disabledLabelColor = PrimaryCoral.copy(alpha = 0.7f),
+            disabledContainerColor = BackgroundLight.copy(alpha = 0.5f)
         )
     )
 }
@@ -815,16 +873,18 @@ private fun FormDropdown(
             value = value,
             onValueChange = {},
             label = { Text(label) },
-            placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
+            placeholder = { Text(placeholder, color = OnSurfaceVariantLight.copy(alpha = 0.5f)) },
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = PrimaryGreen,
-                focusedLabelColor = PrimaryGreen
+                focusedBorderColor = PrimaryCoral,
+                unfocusedBorderColor = Color(0xFFE0D6CC),
+                focusedLabelColor = PrimaryCoral,
+                unfocusedLabelColor = OnSurfaceVariantLight
             )
         )
         ExposedDropdownMenu(
@@ -839,7 +899,7 @@ private fun FormDropdown(
                         expanded = false
                     },
                     leadingIcon = if (option == value) {
-                        { Icon(Icons.Default.Check, contentDescription = null, tint = PrimaryGreen) }
+                        { Icon(Icons.Default.Check, contentDescription = null, tint = PrimaryCoral) }
                     } else null
                 )
             }
@@ -873,7 +933,7 @@ private fun FormYesNoRow(
                     { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                 } else null,
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = PrimaryGreen,
+                    selectedContainerColor = SuccessColor,
                     selectedLabelColor = Color.White
                 )
             )
@@ -922,7 +982,7 @@ private fun FormMultiSelect(
                         { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                     } else null,
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = PrimaryGreen,
+                        selectedContainerColor = PrimaryCoral,
                         selectedLabelColor = Color.White
                     )
                 )
@@ -948,7 +1008,7 @@ private fun FlowRow(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PHOTO CAPTURE ROW
+// PHOTO CAPTURE ROW — DailyMe Warm Style
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -977,7 +1037,7 @@ private fun PhotoCaptureRow(
                 Text(
                     text = "${photos.size}/$maxPhotos",
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (photos.size >= maxPhotos) ErrorColor else PrimaryGreen
+                    color = if (photos.size >= maxPhotos) PrimaryCoral else SuccessColor
                 )
             }
             Spacer(Modifier.height(8.dp))
@@ -1026,11 +1086,11 @@ private fun PhotoThumbnail(
     Box(
         modifier = Modifier
             .size(80.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .border(
                 width = 1.5.dp,
-                color = if (isUploaded) PrimaryGreen else Color(0xFFF59E0B),
-                shape = RoundedCornerShape(10.dp)
+                color = if (isUploaded) SuccessColor else WarningColor,
+                shape = RoundedCornerShape(12.dp)
             )
             .background(if (isUploaded) Color.Transparent else Color(0xFFFFFBEB))
     ) {
@@ -1041,33 +1101,33 @@ private fun PhotoThumbnail(
                 contentDescription = "Photo thumbnail",
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { onView() },
                 contentScale = ContentScale.Crop
             )
         } else {
             // Fallback placeholder
             Box(
-                modifier = Modifier.fillMaxSize().background(PrimaryGreen.copy(alpha = 0.08f)),
+                modifier = Modifier.fillMaxSize().background(PrimaryCoral.copy(alpha = 0.08f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.Image,
                     contentDescription = null,
-                    tint = PrimaryGreen,
+                    tint = PrimaryCoral,
                     modifier = Modifier.size(28.dp)
                 )
             }
         }
 
-        // Upload status badge — exclamation mark if not uploaded
+        // Upload status badge — amber exclamation mark if not uploaded
         if (!isUploaded) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(4.dp)
                     .size(20.dp)
-                    .background(Color(0xFFF59E0B), CircleShape),
+                    .background(WarningColor, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -1112,48 +1172,67 @@ private fun GpsCaptureCard(
     val isAccurate = accuracy.removePrefix("<").removeSuffix("m").toIntOrNull()?.let { it <= 4 } == true
 
     if (screenshotPath != null && hasCoords) {
-        // Show captured GPS summary card with screenshot
+        // Show captured GPS summary card with screenshot — DailyMe warm style
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
-            border = BorderStroke(1.5.dp, if (isAccurate) Color(0xFF22C55E) else Color(0xFFFBBF24))
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    ambientColor = Color(0x20000000),
+                    spotColor = Color(0x15000000)
+                ),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+            border = BorderStroke(1.5.dp, if (isAccurate) SuccessColor else WarningColor)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Coral accent bar
+                    Box(
+                        modifier = Modifier
+                            .width(4.dp)
+                            .height(48.dp)
+                            .background(PrimaryCoral, RoundedCornerShape(2.dp))
+                    )
+
+                    Spacer(Modifier.width(12.dp))
+
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "GPS CAPTURED",
                             fontSize = 10.sp,
-                            color = Color.Gray,
+                            color = OnSurfaceVariantLight,
                             fontWeight = FontWeight.Medium
                         )
                         Spacer(Modifier.height(4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             Column {
-                                Text("LAT", fontSize = 10.sp, color = Color.Gray)
+                                Text("LAT", fontSize = 10.sp, color = OnSurfaceVariantLight)
                                 Text(latitude, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
                             Column {
-                                Text("LNG", fontSize = 10.sp, color = Color.Gray)
+                                Text("LNG", fontSize = 10.sp, color = OnSurfaceVariantLight)
                                 Text(longitude, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
                             Column {
-                                Text("ACC", fontSize = 10.sp, color = Color.Gray)
-                                Text(accuracy, fontSize = 14.sp, fontWeight = FontWeight.Bold,
-                                    color = if (isAccurate) Color(0xFF22C55E) else Color(0xFFB45309))
+                                Text("ACC", fontSize = 10.sp, color = OnSurfaceVariantLight)
+                                Text(
+                                    accuracy, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                                    color = if (isAccurate) SuccessColor else WarningColor
+                                )
                             }
                             Column {
-                                Text("ALT", fontSize = 10.sp, color = Color.Gray)
+                                Text("ALT", fontSize = 10.sp, color = OnSurfaceVariantLight)
                                 Text(altitude.ifBlank { "—" }, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                     IconButton(onClick = onRemove) {
-                        Icon(Icons.Default.Close, "Remove", tint = Color.Red)
+                        Icon(Icons.Default.Close, "Remove", tint = ErrorColor)
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -1166,15 +1245,16 @@ private fun GpsCaptureCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(140.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(12.dp))
                     )
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = onOpenCapture,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryGreen)
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.5.dp, PrimaryCoral),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryCoral)
                 ) {
                     Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
@@ -1183,12 +1263,20 @@ private fun GpsCaptureCard(
             }
         }
     } else {
-        // Show capture button
+        // Show capture button — DailyMe warm style
         OutlinedCard(
             onClick = onOpenCapture,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.outlinedCardColors(containerColor = Color(0xFFEFF6FF))
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    ambientColor = Color(0x20000000),
+                    spotColor = Color(0x15000000)
+                ),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.outlinedCardColors(containerColor = SurfaceLight),
+            border = BorderStroke(1.5.dp, PrimaryCoral.copy(alpha = 0.4f))
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(20.dp),
@@ -1197,7 +1285,7 @@ private fun GpsCaptureCard(
                 Icon(
                     Icons.Default.MyLocation,
                     contentDescription = null,
-                    tint = Color(0xFF3B82F6),
+                    tint = PrimaryCoral,
                     modifier = Modifier.size(40.dp)
                 )
                 Spacer(Modifier.height(8.dp))
@@ -1205,21 +1293,21 @@ private fun GpsCaptureCard(
                     "Open GPS Capture Screen",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
-                    color = Color(0xFF1E40AF)
+                    color = OnSurfaceLight
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "Tap to open the map, wait for best accuracy, then capture",
                     fontSize = 12.sp,
-                    color = Color(0xFF6B7280),
+                    color = OnSurfaceVariantLight,
                     textAlign = TextAlign.Center
                 )
                 if (hasCoords) {
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Lat: $latitude", fontSize = 11.sp, color = Color.Gray)
-                        Text("Lng: $longitude", fontSize = 11.sp, color = Color.Gray)
-                        Text("Acc: $accuracy", fontSize = 11.sp, color = Color.Gray)
+                        Text("Lat: $latitude", fontSize = 11.sp, color = OnSurfaceVariantLight)
+                        Text("Lng: $longitude", fontSize = 11.sp, color = OnSurfaceVariantLight)
+                        Text("Acc: $accuracy", fontSize = 11.sp, color = OnSurfaceVariantLight)
                     }
                 }
             }
@@ -1232,9 +1320,9 @@ private fun AddPhotoButton(onClick: () -> Unit) {
     OutlinedCard(
         onClick = onClick,
         modifier = Modifier.size(72.dp),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.5.dp, PrimaryGreen.copy(alpha = 0.5f)),
-        colors = CardDefaults.outlinedCardColors(containerColor = PrimaryGreen.copy(alpha = 0.05f))
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.5.dp, PrimaryCoral.copy(alpha = 0.5f)),
+        colors = CardDefaults.outlinedCardColors(containerColor = PrimaryCoral.copy(alpha = 0.05f))
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -1243,7 +1331,7 @@ private fun AddPhotoButton(onClick: () -> Unit) {
             Icon(
                 Icons.Default.AddAPhoto,
                 contentDescription = "Add photo",
-                tint = PrimaryGreen,
+                tint = PrimaryCoral,
                 modifier = Modifier.size(28.dp)
             )
         }
