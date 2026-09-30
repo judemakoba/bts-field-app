@@ -273,36 +273,45 @@ private fun GpsInfoCard(
             containerColor = ComposeColor(0xFF1C1917).copy(alpha = 0.75f)
         )
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Lat: $latitude",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
-                        color = ComposeColor.White
+                        color = ComposeColor.White,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                     Text(
                         text = "Lng: $longitude",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
-                        color = ComposeColor.White
+                        color = ComposeColor.White,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = accuracy,
                         style = MaterialTheme.typography.bodySmall,
-                        color = ComposeColor.White.copy(alpha = 0.7f)
+                        color = ComposeColor.White.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                     if (altitude != "—") {
                         Text(
                             text = altitude,
                             style = MaterialTheme.typography.bodySmall,
-                            color = ComposeColor.White.copy(alpha = 0.7f)
+                            color = ComposeColor.White.copy(alpha = 0.7f),
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -315,13 +324,17 @@ private fun GpsInfoCard(
                 Text(
                     text = if (siteName.isNotBlank()) "$siteId  |  $siteName" else siteId,
                     style = MaterialTheme.typography.bodySmall,
-                    color = ComposeColor.White.copy(alpha = 0.85f)
+                    color = ComposeColor.White.copy(alpha = 0.85f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
                 if (locationSummary.isNotBlank()) {
                     Text(
                         text = locationSummary,
                         style = MaterialTheme.typography.bodySmall,
-                        color = ComposeColor.White.copy(alpha = 0.6f)
+                        color = ComposeColor.White.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
             }

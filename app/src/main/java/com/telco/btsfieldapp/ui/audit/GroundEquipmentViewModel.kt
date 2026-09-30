@@ -427,7 +427,8 @@ class GroundEquipmentViewModel @Inject constructor(
 
             val s = _uiState.value
             val engineerName = s.technicianName.ifBlank { "Unknown" }
-            val recordId = UUID.randomUUID().toString()
+            // Reuse existing record ID so subsequent submits update the same record
+            val recordId = s.existingRecordId ?: UUID.randomUUID().toString()
 
             val photosToUpload = buildGroundPhotoList(s, recordId)
 
@@ -483,7 +484,12 @@ class GroundEquipmentViewModel @Inject constructor(
                 action = "submit"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSubmitting = false, isUploadingPhotos = false, uploadedPhotoPaths = it.uploadedPhotoPaths + uploadedPaths) }
+                    _uiState.update { it.copy(
+                        isSubmitting = false,
+                        isUploadingPhotos = false,
+                        uploadedPhotoPaths = it.uploadedPhotoPaths + uploadedPaths,
+                        existingRecordId = recordId
+                    ) }
                     _events.emit(GroundEquipmentEvent.SubmitSuccess)
                 },
                 onFailure = { e ->
@@ -500,7 +506,8 @@ class GroundEquipmentViewModel @Inject constructor(
 
             val s = _uiState.value
             val engineerName = s.technicianName.ifBlank { "Unknown" }
-            val recordId = UUID.randomUUID().toString()
+            // Reuse existing record ID so each save updates the same draft (no duplicates)
+            val recordId = s.existingRecordId ?: UUID.randomUUID().toString()
 
             val photosToUpload = buildGroundPhotoList(s, recordId)
 
@@ -559,7 +566,13 @@ class GroundEquipmentViewModel @Inject constructor(
                 action = "save"
             ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isSavingDraft = false, isUploadingPhotos = false, uploadedPhotoPaths = newUploadedPaths) }
+                    // Persist the recordId so subsequent saves update the same draft
+                    _uiState.update { it.copy(
+                        isSavingDraft = false,
+                        isUploadingPhotos = false,
+                        uploadedPhotoPaths = newUploadedPaths,
+                        existingRecordId = recordId
+                    ) }
                     _events.emit(GroundEquipmentEvent.SaveDraftSuccess)
                 },
                 onFailure = { e ->

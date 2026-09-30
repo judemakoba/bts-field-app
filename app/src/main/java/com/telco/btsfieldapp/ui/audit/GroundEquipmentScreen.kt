@@ -949,6 +949,7 @@ private fun FormYesNoRow(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
+            color = OnSurfaceLight,
             modifier = Modifier.weight(1f)
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

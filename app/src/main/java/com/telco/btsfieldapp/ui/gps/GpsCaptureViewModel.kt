@@ -166,8 +166,13 @@ fun buildOsmMapHtml(lat: Double?, lng: Double?, accuracy: Float?): String {
   var acc = ${accuracy ?: 0f};
   var alt_val = null;
   function setAltitude(alt) { alt_val = alt; document.getElementById('d-alt').textContent = (alt ? alt + 'm' : '---'); }
+  // Always init the map immediately — even before GPS arrives.
+  // If no coords yet, show a neutral location (0,0). updateLocation()
+  // will be called from Android once GPS arrives and will pan to the real spot.
   if (${lat != null} && ${lng != null}) {
     initMap(${lat}, ${lng});
+  } else {
+    initMap(0.0, 0.0);
   }
 </script>
 </body>

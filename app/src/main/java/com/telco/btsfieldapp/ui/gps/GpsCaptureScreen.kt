@@ -113,6 +113,7 @@ fun GpsCaptureScreen(
                 OsmWebView(
                     viewModel = viewModel,
                     captureRequested = captureRequested,
+                    webViewReady = webViewReady,
                     onMapReady = { webViewReady = true },
                     onCaptureRequestConsumed = { captureRequested = false }
                 )
@@ -334,6 +335,7 @@ private fun GpsStatusCard(
 private fun OsmWebView(
     viewModel: GpsCaptureViewModel,
     captureRequested: Boolean,
+    webViewReady: Boolean,
     onMapReady: () -> Unit,
     onCaptureRequestConsumed: () -> Unit
 ) {
@@ -392,6 +394,10 @@ private fun OsmWebView(
                                 (ctx as? android.app.Activity)?.runOnUiThread { onMapReady() }
                             }
                         }, "NativeMapReady")
+                        // Fallback: mark map ready after 3s even if JS callback missed
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            if (!webViewReady) onMapReady()
+                        }, 3000)
                     }
                 }
 
@@ -413,6 +419,8 @@ private fun OsmWebView(
                 val alt = state.altitude.removeSuffix("m").toFloatOrNull()
                 val js = "updateLocation($lat, $lng, ${acc ?: "null"}, ${alt ?: "null"});"
                 webView.evaluateJavascript(js, null)
+                // Ensure map-ready fires when GPS first arrives
+                if (!webViewReady) onMapReady()
             }
         }
     )
