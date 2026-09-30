@@ -26,6 +26,7 @@ class AuthRepository @Inject constructor(
         private val TOKEN_KEY = stringPreferencesKey("auth_token")
         private val USER_NAME_KEY = stringPreferencesKey("user_name")
         private val USER_EMAIL_KEY = stringPreferencesKey("user_email")
+        private val USER_PHONE_KEY = stringPreferencesKey("user_phone")
     }
 
     val token: Flow<String?> = dataStore.data.map { prefs ->
@@ -38,6 +39,10 @@ class AuthRepository @Inject constructor(
 
     val userEmail: Flow<String?> = dataStore.data.map { prefs ->
         prefs[USER_EMAIL_KEY]
+    }
+
+    val userPhone: Flow<String?> = dataStore.data.map { prefs ->
+        prefs[USER_PHONE_KEY]
     }
 
     suspend fun getToken(): String? = dataStore.data.first()[TOKEN_KEY]
@@ -53,6 +58,7 @@ class AuthRepository @Inject constructor(
                     prefs[TOKEN_KEY] = token
                     prefs[USER_NAME_KEY] = response.user?.fullName ?: response.user?.name ?: email
                     prefs[USER_EMAIL_KEY] = response.user?.email ?: email
+                    prefs[USER_PHONE_KEY] = response.user?.phone ?: ""
                 }
                 Result.success(token)
             } else {
@@ -104,6 +110,7 @@ class AuthRepository @Inject constructor(
             prefs.remove(TOKEN_KEY)
             prefs.remove(USER_NAME_KEY)
             prefs.remove(USER_EMAIL_KEY)
+            prefs.remove(USER_PHONE_KEY)
         }
     }
 }

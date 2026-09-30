@@ -25,6 +25,7 @@ data class UserDto(
     val name: String?,
     @SerializedName("full_name") val fullName: String?,
     val email: String?,
+    val phone: String?,
     val role: String?
 )
 

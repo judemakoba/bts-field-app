@@ -310,7 +310,8 @@ fun GroundEquipmentScreen(
                         value = uiState.technicianContacts,
                         onValueChange = viewModel::onTechnicianContactsChange,
                         label = "Technician Contacts",
-                        hint = "Auto-filled from your account",
+                        hint = "9-digit phone number",
+                        keyboardType = KeyboardType.Phone,
                         leadingIcon = Icons.Default.Phone
                     )
                     Spacer(Modifier.height(12.dp))

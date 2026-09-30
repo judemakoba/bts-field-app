@@ -169,7 +169,7 @@ class GroundEquipmentViewModel @Inject constructor(
     private fun autoFillFromAccount() {
         viewModelScope.launch {
             val userName = authRepository.userName.first() ?: ""
-            val userEmail = authRepository.userEmail.first() ?: ""
+            val userPhone = authRepository.userPhone.first() ?: ""
             val now = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
                 .withZone(ZoneId.of("UTC"))
                 .format(Instant.now())
@@ -177,7 +177,7 @@ class GroundEquipmentViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     technicianName = userName,
-                    technicianContacts = userEmail,
+                    technicianContacts = userPhone,
                     surveyDate = now
                 )
             }
