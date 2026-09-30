@@ -270,14 +270,14 @@ private fun GpsInfoCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = ComposeColor(0xFF1C1917).copy(alpha = 0.75f)
+            containerColor = ComposeColor(0xFF1C1917).copy(alpha = 0.82f)
         )
     ) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -285,7 +285,7 @@ private fun GpsInfoCard(
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = ComposeColor.White,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                     Text(
@@ -293,7 +293,7 @@ private fun GpsInfoCard(
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = ComposeColor.White,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
@@ -325,15 +325,14 @@ private fun GpsInfoCard(
                     text = if (siteName.isNotBlank()) "$siteId  |  $siteName" else siteId,
                     style = MaterialTheme.typography.bodySmall,
                     color = ComposeColor.White.copy(alpha = 0.85f),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    fontWeight = FontWeight.Medium
                 )
                 if (locationSummary.isNotBlank()) {
                     Text(
                         text = locationSummary,
                         style = MaterialTheme.typography.bodySmall,
                         color = ComposeColor.White.copy(alpha = 0.6f),
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
