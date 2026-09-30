@@ -56,13 +56,16 @@ fun buildOsmMapHtml(lat: Double?, lng: Double?, accuracy: Float?): String {
     html, body, #map { width: 100%; height: 100%; }
     #overlay {
       position: absolute; bottom: 0; left: 0; right: 0;
-      background: rgba(0,0,0,0.72); color: white; z-index: 9999;
-      padding: 10px 12px; font-family: 'Courier New', monospace; font-size: 13px;
-      border-top: 2px solid #4ade80;
+      background: rgba(0,0,0,0.88); color: white; z-index: 9999;
+      padding: 10px 14px; font-family: 'Courier New', monospace; font-size: 13px;
+      border-top: 3px solid #4ade80;
     }
-    #overlay .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-    #overlay .label { color: #86efac; font-size: 11px; }
-    #overlay .value { font-weight: bold; }
+    #overlay .row { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+    #overlay .row > div { min-width: 0; flex: 1; }
+    #overlay .label { color: #86efac; font-size: 11px; font-weight: 600; letter-spacing: .05em; }
+    #overlay .value { font-weight: bold; color: #ffffff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.5);
+    }
     #accuracy-bar {
       width: 100%; height: 4px; background: #374151; border-radius: 2px; margin-top: 6px;
     }

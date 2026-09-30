@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.RotateLeft
 import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.ZoomIn
@@ -20,10 +22,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -55,7 +57,17 @@ fun PhotoViewerDialog(
     var rotationDeg by remember { mutableFloatStateOf(0f) }
     var scale by remember { mutableFloatStateOf(1f) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showGpsOverlay by remember { mutableStateOf(true) }
     val file = remember(photoPath) { File(photoPath) }
+    val isGpsScreenshot = remember(photoPath) {
+        val fname = photoPath.substringAfterLast("/").substringAfterLast("\\")
+        fname.startsWith("GPS_", ignoreCase = true)
+    }
+    // GPS timestamp from filename e.g. GPS_20260930_071539
+    val gpsLabel = remember(photoPath) {
+        if (!isGpsScreenshot) null
+        else file.nameWithoutExtension.removePrefix("GPS_")
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -96,6 +108,16 @@ fun PhotoViewerDialog(
                     maxLines = 1
                 )
 
+                if (isGpsScreenshot) {
+                    IconButton(onClick = { showGpsOverlay = !showGpsOverlay }) {
+                        Icon(
+                            Icons.Default.Map,
+                            contentDescription = "Toggle GPS overlay",
+                            tint = if (showGpsOverlay) Color(0xFF4ade80) else Color.White.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+
                 IconButton(onClick = { showDeleteConfirm = true }) {
                     Icon(
                         Icons.Default.Delete,
@@ -134,6 +156,33 @@ fun PhotoViewerDialog(
                         },
                     contentScale = ContentScale.Fit
                 )
+
+                // GPS screenshot overlay — dark gradient footer so text is always readable
+                if (isGpsScreenshot && showGpsOverlay) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.8f)
+                                    )
+                                )
+                            )
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                    ) {
+                        gpsLabel?.let {
+                            Text(
+                                text = "📍 GPS Map Screenshot — $it",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(alpha = 0.85f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
             }
 
             // ── Bottom toolbar ────────────────────────────────────────────────────
