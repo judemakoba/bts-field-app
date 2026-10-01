@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -139,7 +140,7 @@ fun DcdbInfoScreen(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Submit for Review")
                         }
@@ -576,11 +577,15 @@ fun DcdbInfoScreen(
                     isExpanded = uiState.expandedSections.contains(4),
                     onToggle = { viewModel.toggleSection(4) }
                 ) {
+                    FormTextField(value = uiState.btsEarthingTotal, onValueChange = viewModel::onBtsEarthingTotalChange, label = "BTS Earthing Total Length (m)", keyboardType = KeyboardType.Number)
+                    Spacer(Modifier.height(8.dp))
                     FormTextField(value = uiState.btsEarthingCableCount, onValueChange = viewModel::onBtsEarthingCableCountChange, label = "BTS Earthing Cable Count (pcs)", keyboardType = KeyboardType.Number)
                     Spacer(Modifier.height(8.dp))
                     FormTextField(value = uiState.btsEarthingCableMissing, onValueChange = viewModel::onBtsEarthingCableMissingChange, label = "BTS Earthing Cable Missing (pcs)", keyboardType = KeyboardType.Number)
                     Spacer(Modifier.height(8.dp))
                     FormTextField(value = uiState.btsEarthingLengthPerRun, onValueChange = viewModel::onBtsEarthingLengthPerRunChange, label = "BTS Earthing Length per Run (m)", keyboardType = KeyboardType.Number)
+                    Spacer(Modifier.height(8.dp))
+                    FormTextField(value = uiState.btsEarthingConnection, onValueChange = viewModel::onBtsEarthingConnectionChange, label = "BTS Earthing Connection")
                     Spacer(Modifier.height(8.dp))
                     FormTextField(value = uiState.btsEarthingTotalMissing, onValueChange = viewModel::onBtsEarthingTotalMissingChange, label = "BTS Earthing Total Length Missing (m)", keyboardType = KeyboardType.Number)
                 }
@@ -789,7 +794,7 @@ private fun PhotoCaptureRow(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = OnSurfaceLight
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = "${photos.size}/$maxPhotos",
@@ -858,7 +863,7 @@ private fun PhotoThumbnail(
                 color = if (isUploaded) PrimaryCoral else SecondaryAmber,
                 shape = RoundedCornerShape(12.dp)
             )
-            .background(if (isUploaded) SurfaceLight else SecondaryAmberLight.copy(alpha = 0.5f))
+            .background(if (isUploaded) MaterialTheme.colorScheme.surface else SecondaryAmberLight.copy(alpha = 0.5f))
     ) {
         // Actual image thumbnail
         if (file.exists()) {

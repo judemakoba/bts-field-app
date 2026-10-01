@@ -90,9 +90,11 @@ data class DcdbInfoUiState(
     val aauEarthingCableLengthPerRun: String = "",
 
     // ── BTS Earthing Sub-section ────────────────────────────────
+    val btsEarthingTotal: String = "",
     val btsEarthingCableCount: String = "",
     val btsEarthingCableMissing: String = "",
     val btsEarthingLengthPerRun: String = "",
+    val btsEarthingConnection: String = "",
     val btsEarthingTotalMissing: String = "",
 
     // ── Form state ───────────────────────────────────────────────
@@ -325,9 +327,11 @@ class DcdbInfoViewModel @Inject constructor(
     fun onAauEarthingCableLengthPerRunChange(v: String) = _uiState.update { it.copy(aauEarthingCableLengthPerRun = v) }
 
     // ── BTS Earthing ───────────────────────────────────────────────────────
+    fun onBtsEarthingTotalChange(v: String) = _uiState.update { it.copy(btsEarthingTotal = v) }
     fun onBtsEarthingCableCountChange(v: String) = _uiState.update { it.copy(btsEarthingCableCount = v) }
     fun onBtsEarthingCableMissingChange(v: String) = _uiState.update { it.copy(btsEarthingCableMissing = v) }
     fun onBtsEarthingLengthPerRunChange(v: String) = _uiState.update { it.copy(btsEarthingLengthPerRun = v) }
+    fun onBtsEarthingConnectionChange(v: String) = _uiState.update { it.copy(btsEarthingConnection = v) }
     fun onBtsEarthingTotalMissingChange(v: String) = _uiState.update { it.copy(btsEarthingTotalMissing = v) }
 
     // ── Section expand/collapse ─────────────────────────────────────────────
@@ -580,9 +584,11 @@ class DcdbInfoViewModel @Inject constructor(
         put("aau_earthing_cable_length_per_run", s.aauEarthingCableLengthPerRun)
 
         // BTS Earthing
+        put("bts_earthing_total", s.btsEarthingTotal)
         put("bts_earthing_cable_count", s.btsEarthingCableCount)
         put("bts_earthing_cable_missing", s.btsEarthingCableMissing)
-        put("bts_earthing_length_per_run", s.btsEarthingLengthPerRun)
+        put("bts_earthing_cable_length_per_run", s.btsEarthingLengthPerRun)
+        put("bts_earthing_connection", s.btsEarthingConnection)
         put("bts_earthing_total_missing", s.btsEarthingTotalMissing)
     }
 }
