@@ -85,6 +85,7 @@ data class GroundRecordDto(
     @SerializedName("longitude") val longitude: String?,
     @SerializedName("gps_accuracy") val gpsAccuracy: String?,
     @SerializedName("altitude") val altitude: String?,
+    @SerializedName("gps_screenshot") val gpsScreenshot: String?,
     // Survey Details
     @SerializedName("survey_date") val surveyDate: String?,
     @SerializedName("technician_name") val technicianName: String?,

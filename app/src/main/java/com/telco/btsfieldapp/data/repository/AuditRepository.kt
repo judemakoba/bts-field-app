@@ -266,6 +266,7 @@ private fun com.telco.btsfieldapp.data.remote.GroundRecordDto.toDomain() = Groun
     longitude = longitude ?: "",
     gpsAccuracy = gpsAccuracy ?: "",
     altitude = altitude ?: "",
+    gpsScreenshot = gpsScreenshot ?: null,
     // Survey Details
     surveyDate = surveyDate ?: "",
     technicianName = technicianName ?: "",

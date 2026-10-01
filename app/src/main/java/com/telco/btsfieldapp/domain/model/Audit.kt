@@ -33,6 +33,7 @@ data class GroundRecord(
     val longitude: String = "",
     val gpsAccuracy: String = "",
     val altitude: String = "",
+    val gpsScreenshot: String? = null,
     // Survey Details
     val surveyDate: String = "",
     val technicianName: String = "",

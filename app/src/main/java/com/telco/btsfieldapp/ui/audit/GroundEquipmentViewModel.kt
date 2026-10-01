@@ -250,6 +250,7 @@ class GroundEquipmentViewModel @Inject constructor(
                 longitude = r.longitude,
                 gpsAccuracy = r.gpsAccuracy,
                 altitude = r.altitude,
+                gpsScreenshotPath = r.gpsScreenshot,
                 towerType = r.towerType,
                 towerHeight = r.towerHeight,
                 buildingHeight = r.buildingHeight,

@@ -405,7 +405,7 @@ fun GroundEquipmentScreen(
                     }
                     Spacer(Modifier.height(12.dp))
                     PhotoCaptureRow(
-                        label = "Site Photo",
+                        label = "Site Photo (Tower Overview)",
                         photos = uiState.sitePhotoPath?.let { listOf(it) } ?: emptyList(),
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "site_photo") },
                         onRemovePhoto = { viewModel.onSitePhoto("") },
@@ -541,6 +541,7 @@ fun GroundEquipmentScreen(
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "cabinet_dim") },
                         onRemovePhoto = viewModel::removeCabinetDimensionPhoto,
                         maxPhotos = 3,
+                        uploadedPhotoPaths = uiState.uploadedPhotoPaths,
                         existingPhotos = uiState.existingPhotos.filter { it.fieldName.startsWith("cabinet_dim_photo") }
                     )
                     Spacer(Modifier.height(12.dp))
@@ -572,6 +573,7 @@ fun GroundEquipmentScreen(
                         onAddPhoto = { onCapturePhoto(uiState.siteId, uiState.siteName, uiState.locationSummary, "nonactive_idu") },
                         onRemovePhoto = viewModel::removeNonActiveIduPhoto,
                         maxPhotos = 5,
+                        uploadedPhotoPaths = uiState.uploadedPhotoPaths,
                         existingPhotos = uiState.existingPhotos.filter { it.fieldName.startsWith("non_active_idu_photo") }
                     )
                 }
@@ -723,7 +725,7 @@ private fun FormSectionCard(
                 spotColor = Color(0x20000000)
             ),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column {
@@ -731,7 +733,7 @@ private fun FormSectionCard(
             Surface(
                 onClick = onToggle,
                 modifier = Modifier.fillMaxWidth(),
-                color = SurfaceLight,
+                color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             ) {
                 Row(
@@ -783,7 +785,7 @@ private fun FormSectionCard(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = OnSurfaceLight,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f)
                     )
 
@@ -1355,18 +1357,17 @@ private fun GpsCaptureCard(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                // Screenshot thumbnail
+                // Screenshot thumbnail — works with local file paths AND server URLs
                 val file = java.io.File(screenshotPath)
-                if (file.exists()) {
-                    coil.compose.AsyncImage(
-                        model = file,
-                        contentDescription = "GPS Screenshot",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                    )
-                }
+                val imageModel: Any = if (file.exists()) file else screenshotPath
+                coil.compose.AsyncImage(
+                    model = imageModel,
+                    contentDescription = "GPS Screenshot",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = onOpenCapture,
