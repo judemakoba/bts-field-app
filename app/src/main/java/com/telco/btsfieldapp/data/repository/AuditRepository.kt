@@ -248,11 +248,55 @@ private fun com.telco.btsfieldapp.data.remote.GroundRecordDto.toDomain() = Groun
     id = id,
     siteId = siteId,
     type = type ?: "ground",
-    fenceCondition = fenceCondition ?: "",
-    gateLock = gateLock ?: "",
-    groundResistance = groundResistance ?: "",
-    drainageCondition = drainageCondition ?: "",
+    // Legacy ground inspection (not in DTO, always empty)
+    fenceCondition = "",
+    gateLock = "",
+    groundResistance = "",
+    drainageCondition = "",
+    // Site / Tower Info
+    atcId = atcId ?: "",
+    towerType = towerType ?: "",
+    towerHeight = towerHeight ?: "",
+    buildingHeight = buildingHeight ?: "0",
+    totalHeight = totalHeight ?: "0",
+    siteIndoorOutdoor = siteIndoorOutdoor ?: "",
+    noOfTenants = noOfTenants ?: "",
+    otherTenants = otherTenants?.split("|")?.filter { it.isNotBlank() } ?: emptyList(),
+    latitude = latitude ?: "",
+    longitude = longitude ?: "",
+    gpsAccuracy = gpsAccuracy ?: "",
+    altitude = altitude ?: "",
+    // Survey Details
+    surveyDate = surveyDate ?: "",
+    technicianName = technicianName ?: "",
+    technicianContacts = technicianContacts ?: "",
+    contractorName = contractorName ?: "Innovis",
+    // Power Infrastructure
+    hasGrid = hasGrid ?: false,
+    hasDG = hasDG ?: false,
+    hasSolar = hasSolar ?: false,
+    gridDistanceTo3Phase = gridDistanceTo3Phase ?: "",
+    // RRU & Cabinets
+    guardAtSite = guardAtSite ?: false,
+    rruType = rruType ?: "",
+    rruCount = rruCount ?: "",
+    cabinetTypes = cabinetTypes ?: "",
+    cabinetCount = cabinetCount ?: "",
+    equipmentLabelled = equipmentLabelled ?: false,
+    cabinetComments = cabinetComments ?: "",
+    cabinetDimensionsLxW = cabinetDimensionsLxWxH ?: "",
+    activeIduTypes = activeIduTypes ?: "",
+    nonActiveIduTypes = nonActiveIduTypes ?: "",
+    nonActiveIduCount = nonActiveIduCount ?: "",
+    // Slab
+    slabDimensions = slabDimensions ?: "",
+    // Redundant
+    redundantEquipmentCount = redundantEquipmentCount ?: "",
+    redundantItemName = redundantItemName ?: "",
+    // Media & Remarks
+    isOnFiber = isOnFiber,
     notes = notes ?: "",
+    // Metadata
     createdAt = createdAt ?: "",
     updatedAt = updatedAt ?: ""
 )

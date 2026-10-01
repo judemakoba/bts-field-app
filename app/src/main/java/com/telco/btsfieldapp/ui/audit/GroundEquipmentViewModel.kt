@@ -8,6 +8,7 @@ import com.telco.btsfieldapp.data.repository.AuthRepository
 import com.telco.btsfieldapp.data.repository.PhotoToUpload
 import com.telco.btsfieldapp.data.repository.SiteRepository
 import com.telco.btsfieldapp.data.repository.UploadProgress
+import com.telco.btsfieldapp.data.remote.GroundRecordDto
 import com.telco.btsfieldapp.data.remote.PhotoDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -196,7 +197,7 @@ class GroundEquipmentViewModel @Inject constructor(
             try {
                 // Fetch the latest ground record for this site
                 val siteAudit = auditRepository.fetchSiteAudit(siteId).getOrNull()
-                val latestRecord = siteAudit?.groundRecords
+                val latestRecord: com.telco.btsfieldapp.domain.model.GroundRecord? = siteAudit?.groundRecords
                     ?.filter { it.id.isNotBlank() }
                     ?.maxByOrNull { it.createdAt }
                     ?: siteAudit?.groundRecords?.firstOrNull { it.id.isNotBlank() }
@@ -232,11 +233,57 @@ class GroundEquipmentViewModel @Inject constructor(
         }
     }
 
-    /** Map server GroundRecord fields to UI state (only fields that exist in the backend schema). */
-    private fun populateFormFromRecord(record: com.telco.btsfieldapp.domain.model.GroundRecord) {
-        // Pre-fill remarks from notes if available
-        val remarks = record.notes.trim().takeIf { it.isNotBlank() && it != "-" }
-        _uiState.update { it.copy(overallRemarks = remarks ?: it.overallRemarks) }
+    /** Map ALL server GroundRecord fields to UI state so the engineer can continue where they left off. */
+    private fun populateFormFromRecord(r: com.telco.btsfieldapp.domain.model.GroundRecord) {
+        val otherTenantsList = r.otherTenants.filter { it.isNotBlank() }
+        _uiState.update {
+            it.copy(
+                // Section 1: Site ID
+                atcId = r.atcId,
+                // Section 2: Survey Details
+                surveyDate = r.surveyDate,
+                technicianName = r.technicianName,
+                technicianContacts = r.technicianContacts,
+                contractorName = r.contractorName,
+                // Section 3: Tower & Site Info
+                latitude = r.latitude,
+                longitude = r.longitude,
+                gpsAccuracy = r.gpsAccuracy,
+                altitude = r.altitude,
+                towerType = r.towerType,
+                towerHeight = r.towerHeight,
+                buildingHeight = r.buildingHeight,
+                totalHeight = r.totalHeight,
+                siteIndoorOutdoor = r.siteIndoorOutdoor,
+                noOfTenants = r.noOfTenants,
+                otherTenants = otherTenantsList.ifEmpty { it.otherTenants },
+                // Section 4: Power Infrastructure
+                hasGrid = r.hasGrid,
+                hasDG = r.hasDG,
+                hasSolar = r.hasSolar,
+                gridDistanceTo3Phase = r.gridDistanceTo3Phase,
+                // Section 5: RRU & Cabinets
+                guardAtSite = r.guardAtSite,
+                rruType = r.rruType,
+                rruCount = r.rruCount,
+                cabinetTypes = r.cabinetTypes,
+                cabinetCount = r.cabinetCount,
+                equipmentLabelled = r.equipmentLabelled,
+                cabinetComments = r.cabinetComments,
+                cabinetDimensionsLxW = r.cabinetDimensionsLxW,
+                activeIduTypes = r.activeIduTypes,
+                nonActiveIduTypes = r.nonActiveIduTypes,
+                nonActiveIduCount = r.nonActiveIduCount,
+                // Section 6: Slab
+                slabDimensions = r.slabDimensions,
+                // Section 7: Redundant
+                redundantEquipmentCount = r.redundantEquipmentCount,
+                redundantItemName = r.redundantItemName,
+                // Section 8: Media & Remarks
+                isOnFiber = r.isOnFiber,
+                overallRemarks = r.notes.trim().takeIf { v -> v.isNotBlank() && v != "-" } ?: it.overallRemarks
+            )
+        }
     }
 
     // ── Section 0: Site Identification ────────────────────────────────────────

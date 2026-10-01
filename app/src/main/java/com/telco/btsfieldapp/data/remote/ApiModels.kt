@@ -72,11 +72,50 @@ data class GroundRecordDto(
     val id: String,
     @SerializedName("siteId") val siteId: String,
     val type: String?,
-    @SerializedName("fence_condition") val fenceCondition: String?,
-    @SerializedName("gate_lock") val gateLock: String?,
-    @SerializedName("ground_resistance") val groundResistance: String?,
-    @SerializedName("drainage_condition") val drainageCondition: String?,
+    // Site / Tower Info
+    @SerializedName("atc_id") val atcId: String?,
+    @SerializedName("tower_type") val towerType: String?,
+    @SerializedName("tower_height") val towerHeight: String?,
+    @SerializedName("building_height") val buildingHeight: String?,
+    @SerializedName("total_height") val totalHeight: String?,
+    @SerializedName("site_indoor_outdoor") val siteIndoorOutdoor: String?,
+    @SerializedName("no_of_tenants") val noOfTenants: String?,
+    @SerializedName("other_tenants") val otherTenants: String?,
+    @SerializedName("latitude") val latitude: String?,
+    @SerializedName("longitude") val longitude: String?,
+    @SerializedName("gps_accuracy") val gpsAccuracy: String?,
+    @SerializedName("altitude") val altitude: String?,
+    // Survey Details
+    @SerializedName("survey_date") val surveyDate: String?,
+    @SerializedName("technician_name") val technicianName: String?,
+    @SerializedName("technician_contacts") val technicianContacts: String?,
+    @SerializedName("contractor_name") val contractorName: String?,
+    // Power Infrastructure
+    @SerializedName("has_grid") val hasGrid: Boolean?,
+    @SerializedName("has_dg") val hasDG: Boolean?,
+    @SerializedName("has_solar") val hasSolar: Boolean?,
+    @SerializedName("grid_distance_to_3phase") val gridDistanceTo3Phase: String?,
+    // RRU & Cabinets
+    @SerializedName("guard_at_site") val guardAtSite: Boolean?,
+    @SerializedName("rru_type") val rruType: String?,
+    @SerializedName("rru_count") val rruCount: String?,
+    @SerializedName("cabinet_types") val cabinetTypes: String?,
+    @SerializedName("cabinet_count") val cabinetCount: String?,
+    @SerializedName("equipment_labelled") val equipmentLabelled: Boolean?,
+    @SerializedName("cabinet_comments") val cabinetComments: String?,
+    @SerializedName("cabinet_dimensions_lxwxh") val cabinetDimensionsLxWxH: String?,
+    @SerializedName("active_idu_types") val activeIduTypes: String?,
+    @SerializedName("non_active_idu_types") val nonActiveIduTypes: String?,
+    @SerializedName("non_active_idu_count") val nonActiveIduCount: String?,
+    // Slab
+    @SerializedName("slab_dimensions") val slabDimensions: String?,
+    // Redundant
+    @SerializedName("redundant_equipment_count") val redundantEquipmentCount: String?,
+    @SerializedName("redundant_item_name") val redundantItemName: String?,
+    // Media
+    @SerializedName("is_on_fiber") val isOnFiber: Boolean?,
     val notes: String?,
+    // Metadata
     @SerializedName("createdAt") val createdAt: String?,
     @SerializedName("updatedAt") val updatedAt: String?
 )

@@ -15,11 +15,55 @@ data class GroundRecord(
     val id: String,
     val siteId: String,
     val type: String = "ground",
+    // Legacy ground inspection
     val fenceCondition: String = "",
     val gateLock: String = "",
     val groundResistance: String = "",
     val drainageCondition: String = "",
+    // Site / Tower Info
+    val atcId: String = "",
+    val towerType: String = "",
+    val towerHeight: String = "",
+    val buildingHeight: String = "0",
+    val totalHeight: String = "0",
+    val siteIndoorOutdoor: String = "",
+    val noOfTenants: String = "",
+    val otherTenants: List<String> = emptyList(),
+    val latitude: String = "",
+    val longitude: String = "",
+    val gpsAccuracy: String = "",
+    val altitude: String = "",
+    // Survey Details
+    val surveyDate: String = "",
+    val technicianName: String = "",
+    val technicianContacts: String = "",
+    val contractorName: String = "Innovis",
+    // Power Infrastructure
+    val hasGrid: Boolean = false,
+    val hasDG: Boolean = false,
+    val hasSolar: Boolean = false,
+    val gridDistanceTo3Phase: String = "",
+    // RRU & Cabinets
+    val guardAtSite: Boolean = false,
+    val rruType: String = "",
+    val rruCount: String = "",
+    val cabinetTypes: String = "",
+    val cabinetCount: String = "",
+    val equipmentLabelled: Boolean = false,
+    val cabinetComments: String = "",
+    val cabinetDimensionsLxW: String = "",
+    val activeIduTypes: String = "",
+    val nonActiveIduTypes: String = "",
+    val nonActiveIduCount: String = "",
+    // Slab
+    val slabDimensions: String = "",
+    // Redundant
+    val redundantEquipmentCount: String = "",
+    val redundantItemName: String = "",
+    // Media & Remarks
+    val isOnFiber: Boolean? = null,
     val notes: String = "",
+    // Metadata
     val createdAt: String = "",
     val updatedAt: String = ""
 )
