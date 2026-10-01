@@ -40,13 +40,13 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-// DailyMe Warm Palette — section-specific colors
+// Bright palette — section-specific colors
 private val SECTION_COLORS = listOf(
-    Color(0xFFF59E0B), // amber   — DCDB
-    Color(0xFF8B5CF6), // purple — DCDU Connections
-    Color(0xFF8B5CF6), // purple — RRU
-    Color(0xFFEC4899), // pink   — AAU
-    Color(0xFFF97316), // coral  — BTS Earthing
+    SectionAmber,   // DCDB
+    SectionPurple,  // DCDU Connections
+    SectionPurple,  // RRU
+    SectionPink,    // AAU
+    SectionGreen,   // BTS Earthing
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

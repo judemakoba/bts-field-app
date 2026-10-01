@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Comment
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -49,14 +51,14 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private val SECTION_COLORS = listOf(
-    Color(0xFF22C55E), // green — Ground
-    Color(0xFFF97316), // coral — GPS
-    Color(0xFFF59E0B), // amber — Shelter
-    Color(0xFF3B82F6), // blue — Battery
-    Color(0xFF8B5CF6), // purple — AC
-    Color(0xFFEF4444), // red
-    Color(0xFF06B6D4), // cyan
-    Color(0xFFEC4899), // pink
+    SectionGreen,    // Ground
+    SectionBlue,    // GPS
+    SectionAmber,   // Shelter
+    SectionBlue,    // Battery
+    SectionPurple,  // AC
+    SectionRed,     // Critical
+    SectionCyan,    // Media
+    SectionPink,    // Remarks
 )
 
 private val TENANT_OPTIONS = listOf("Lyca", "MTN", "UTL", "Savanna", "Other")
@@ -229,7 +231,7 @@ fun GroundEquipmentScreen(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
                             Text("Submit")
                         }
@@ -646,7 +648,7 @@ fun GroundEquipmentScreen(
                 FormSectionCard(
                     index = 7,
                     title = "Media & Remarks",
-                    icon = Icons.Default.Comment,
+                    icon = Icons.AutoMirrored.Filled.Comment,
                     isExpanded = uiState.expandedSections.contains(7),
                     onToggle = { viewModel.toggleSection(7) }
                 ) {

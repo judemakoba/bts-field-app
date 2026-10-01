@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,10 +38,10 @@ import com.telco.btsfieldapp.ui.theme.*
 import kotlinx.coroutines.flow.collectLatest
 import java.io.File
 
-// DailyMe Warm Palette — section-specific colors for Tower
+// Bright palette — section-specific colors for Tower
 private val SECTION_COLORS = listOf(
-    Color(0xFF3B82F6), // blue   — Antenna
-    Color(0xFF8B5CF6), // purple — RRU
+    SectionBlue,    // Antenna
+    SectionPurple,  // RRU
 )
 
 private val EQUIPMENT_TYPES = listOf("RF Antenna", "MW Antenna", "MW ODU", "RRU", "AAU")
@@ -140,7 +141,7 @@ fun TowerInfoScreen(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Icon(Icons.Default.Send, null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.AutoMirrored.Filled.Send, null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Submit for Review")
                         }
